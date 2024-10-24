@@ -1,6 +1,10 @@
 import os
 from functools import lru_cache
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 class Settings(BaseSettings):
     pg_username: str

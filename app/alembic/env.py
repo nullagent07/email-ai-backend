@@ -1,14 +1,15 @@
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
-from app.core.config import get_app_settings, get_settings_no_cache
+from core.config import get_app_settings, get_settings_no_cache
+from models.user import Base
 
 # Получение настроек приложения
 app_settings = get_app_settings()
 
 # Формирование строки подключения к базе данных
 pg_connection_string = (
-    f"postgresql+asyncpg://{app_settings.pg_username}:{app_settings.pg_password}@"
+    f"postgresql://{app_settings.pg_username}:{app_settings.pg_password}@"
     f"{app_settings.pg_host}:{app_settings.pg_port}/{app_settings.pg_database}"
 )
 
@@ -23,7 +24,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Установка метаданных
-target_metadata = None
+target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
