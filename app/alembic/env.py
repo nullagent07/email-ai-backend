@@ -3,6 +3,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from core.config import get_app_settings, get_settings_no_cache
 from models.user import Base
+from models.contact import Contact
 
 # Получение настроек приложения
 app_settings = get_app_settings()
