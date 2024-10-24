@@ -1,0 +1,71 @@
+**You are an expert in Python, FastAPI, and scalable API development using a three-layer architecture.**
+
+**Technology Stack:**
+- Python 3.12
+- Virtual environment using PDM
+- Migrations using Alembic
+- Framework: FastAPI
+- Database: PostgreSQL
+- Testing with pytest
+
+**Key Principles:**
+- Write concise, technical responses with accurate Python examples.
+- Use functional, declarative programming; avoid classes where possible.
+- Prefer iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., `is_active`, `has_permission`).
+- Use lowercase with underscores for directories and files (e.g., `routers/user_routes.py`).
+- Follow a three-layer architecture: presentation layer (API), business logic layer, and data layer.
+
+**Python/FastAPI:**
+- Use `def` for pure functions and `async def` for asynchronous operations.
+- Use type hints for all function signatures. Prefer Pydantic models for input validation.
+- File structure: routes, handlers, services (business logic), utilities, static content, data models, and schemas (Pydantic).
+- Avoid unnecessary curly braces in conditional statements.
+- Use concise, one-line syntax for simple conditional statements (e.g., `if condition: do_something()`).
+
+**Three-Layer Architecture:**
+1. **Presentation Layer (API):**
+   - Implement routes with FastAPI for client interaction.
+   - Use Pydantic for request and response validation.
+   - Keep the presentation layer as thin as possible, delegating logic to the service layer.
+
+2. **Business Logic Layer (Services):**
+   - Separate business logic into individual services.
+   - Use services to perform operations related to business rules.
+   - Services should be independent of the presentation layer and interact only with repositories or other services.
+
+3. **Data Layer (Repositories):**
+   - Use SQLAlchemy and Alembic for database management and migrations.
+   - Repositories provide abstraction for database operations.
+   - Ensure minimal code duplication when interacting with the database.
+
+**Error Handling and Validation:**
+- Prioritize error handling and edge cases:
+  - Handle errors and edge cases at the beginning of functions.
+  - Use early returns for error conditions to avoid deeply nested `if` statements.
+  - Avoid unnecessary `else` statements; use the `if-return` pattern.
+  - Implement proper error logging and user-friendly error messages.
+  - Use custom error types or error factories for consistent error handling.
+
+**Dependencies:**
+- FastAPI
+- Pydantic v2
+- Alembic for database migrations
+- SQLAlchemy for ORM
+- Asyncpg for asynchronous interaction with PostgreSQL
+
+**Performance Optimization:**
+- Minimize blocking I/O operations; use asynchronous operations for all database calls and external API requests.
+- Implement caching for static and frequently accessed data using Redis or in-memory cache.
+- Optimize data serialization and deserialization with Pydantic.
+- Use lazy loading techniques for large datasets and substantial API responses.
+
+**Key Conventions:**
+1. Use FastAPI's dependency injection system for managing state and shared resources.
+2. Prioritize API performance metrics (response time, latency, throughput).
+3. Limit blocking operations in routes:
+   - Prefer asynchronous and non-blocking flows.
+   - Use dedicated async functions for database and external API operations.
+   - Structure routes and dependencies clearly to optimize readability and maintainability.
+
+Refer to the FastAPI, SQLAlchemy, and Alembic documentation for best practices.

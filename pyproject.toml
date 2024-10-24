@@ -1,0 +1,23 @@
+[project]
+name = "app"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "nullcharge", email = "nullagent07@gmail.com"},
+]
+dependencies = [
+    "fastapi>=0.115.3",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.13.3",
+    "asyncpg>=0.30.0",
+    "pydantic>=2.9.2",
+    "pytest>=8.3.3",
+    "python-dotenv>=1.0.1",
+]
+requires-python = "==3.12.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false
