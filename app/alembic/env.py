@@ -4,7 +4,7 @@ from alembic import context
 from core.config import get_app_settings, get_settings_no_cache
 from models.user import Base
 from models.email_threads import EmailThread
-# from models.message_history import MessageHistory
+from models.email_message import EmailMessage
 
 # Получение настроек приложения
 app_settings = get_app_settings()

@@ -22,8 +22,8 @@
 ### Таблица `Email_Message` (История сообщений)
 - **message_id** (Primary Key): Уникальный идентификатор для каждого сообщения.
 - **thread_id** (Foreign Key): Идентификатор треда, к которому относится сообщение.
-- **sender_email** (Foreign Key): Email отправителя.
-- **receiver_email** (Foreign Key): Email получателя.
+- **sender_email**: Email отправителя.
+- **receiver_email**: Email получателя.
 - **sent_date** (Enum: "sent", "received"): Дата и время отправления сообщения.
 - **content**: Содержание сообщения.
 - **status**: Временная метка сообщения (дата и время отправки/получения).
