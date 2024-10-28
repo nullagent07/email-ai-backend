@@ -1,7 +1,5 @@
 # Email Assistant
 
-
-
 ## Структура базы данных
 
 ### Таблица `User` (Пользователь)
@@ -38,24 +36,14 @@ my_project/
 │   ├── main.py
 │   ├── endpoints/
 │   │   ├── __init__.py
-│   │   ├── user_endpoints.py
-│   │   └── contact_endpoints.py
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── user_service.py
-│   │   └── contact_service.py
 │   ├── repositories/
 │   │   ├── __init__.py
-│   │   ├── user_repository.py
-│   │   └── contact_repository.py
 │   ├── models/
 │   │   ├── __init__.py
-│   │   ├── user.py
-│   │   └── contact.py
 │   ├── schemas/
 │   │   ├── __init__.py
-│   │   ├── user_schema.py
-│   │   └── contact_schema.py
 │   ├── utils/
 │   │   ├── __init__.py
 │   │   └── auth.py
@@ -78,27 +66,15 @@ my_project/
 
 - **app/main.py**: Инициализация приложения FastAPI.
 - **app/endpoints/**: Содержит маршруты API для различных функциональностей.
-  - **user_endpoints.py**: Маршруты, связанные с пользователями.
-  - **contact_endpoints.py**: Маршруты, связанные с контактами.
 - **app/services/**: Содержит бизнес-логику приложения.
-  - **user_service.py**: Логика, связанная с пользователями.
-  - **contact_service.py**: Логика, связанная с контактами.
 - **app/repositories/**: Содержит операции с базой данных.
-  - **user_repository.py**: Операции с данными пользователей.
-  - **contact_repository.py**: Операции с данными контактов.
 - **app/models/**: Содержит модели базы данных.
-  - **user.py**: Модель пользователя.
-  - **contact.py**: Модель контакта.
 - **app/schemas/**: Содержит Pydantic схемы для валидации данных.
-  - **user_schema.py**: Схемы для пользователей.
-  - **contact_schema.py**: Схемы для контактов.
 - **app/utils/**: Содержит вспомогательные функции.
   - **auth.py**: Функции для аутентификации.
 - **app/core/config.py**: Управление настройками приложения.
 - **alembic/**: Содержит файлы для миграций базы данных.
 - **tests/**: Содержит тесты для приложения.
-  - **test_users.py**: Тесты для пользователей.
-  - **test_contacts.py**: Тесты для контактов.
 
 Эта структура проекта организована в соответствии с принципами трехслойной архитектуры, что обеспечивает четкое разделение ответственности и упрощает поддержку и развитие приложения.
 
