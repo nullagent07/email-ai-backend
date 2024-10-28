@@ -71,7 +71,7 @@ async def verify_gmail_token(access_token: str) -> dict:
                 
                 if not required_scopes.issubset(scopes):
                     raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        status_code=status.HTTP_403_FORBIDDEN,
                         detail="Токен не имеет необходимых прав доступа"
                     )
                     
