@@ -112,6 +112,10 @@ SELECT current_date;        -- текущая дата
 \h                         -- помощь по SQL командам
 \?                         -- помощь по командам psql
 SELECT * FROM alembic_version; -- инофрмация о миграциях
+
+DROP TYPE IF EXISTS messagedirection;
+DROP TYPE IF EXISTS messagetype;
+DROP TYPE IF EXISTS threadstatus;
 ```
 
 ```shell

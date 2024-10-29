@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.endpoints import email_assistant
+from app.endpoints.assistants import email_assistant
 
 routers = APIRouter()
 

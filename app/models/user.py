@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
@@ -11,3 +12,11 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     is_subscription_active = Column(Boolean, default=False)
+    
+    # Добавляем связь с OAuthCredentials
+    # uselist=False означает one-to-one отношение
+    oauth_credentials = relationship(
+        "OAuthCredentials", 
+        back_populates="user",
+        uselist=False
+    )
