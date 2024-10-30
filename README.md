@@ -138,7 +138,7 @@ docker exec -it postgres_db psql -U postgres
 - Связь one-to-one с таблицей пользователей
 
 3. **Двухуровневая система токенов**
-- Внешние токены: сохраняются для доступа к API провайдеров (Gmail API)
+- Внешни токены: сохраняются для доступа к API провайдеров (Gmail API)
 - Внутренний JWT токен: используется для аутентификации в приложении
 
 ### Преимущества архитектуры
@@ -160,3 +160,136 @@ docker exec -it postgres_db psql -U postgres
 - `/app/endpoints/auth/oauth.py` - OAuth endpoints
 - `/app/services/auth_service.py` - Бизнес-логика авторизации
 - `/app/models/oauth_credentials.py` - Модель данных OAuth
+
+# OAuth2 Авторизация через Google
+
+## Общий процесс авторизации
+
+### 1. Инициация авторизации (`/auth/google/login`)
+
+python:app/endpoints/auth/oauth.py
+startLine: 18
+endLine: 50
+
+
+Эндпоинт выполняет следующие действия:
+- Генерирует защищенный state-токен для предотвращения CSRF-атак
+- Сохраняет state-токен в HTTP-only cookie
+- Формирует URL для авторизации Google со следующими параметрами:
+  - `client_id`: ID приложения в Google Cloud
+  - `redirect_uri`: URL для обработки ответа
+  - `scope`: Запрашиваемые разрешения
+  - `access_type`: "offline" для получения refresh token
+  - `prompt`: "consent" для отображения окна подтверждения
+
+### 2. Callback от Google (`/auth/google/callback`)
+python:app/endpoints/auth/oauth.py
+startLine: 52
+endLine: 85
+
+После подтверждения пользователем:
+- Проверяется state-токен для защиты от CSRF
+- Код авторизации обменивается на токены доступа
+- Создается/обновляется пользователь в БД
+- Устанавливается JWT токен в cookie
+
+### 3. Верификация токенов
+python:app/utils/oauth_verification.py
+startLine: 6
+endLine: 62
+
+Процесс проверки включает:
+- Обмен кода на токены через Google API
+- Получение информации о пользователе
+- Валидацию всех необходимых разрешений
+
+### 4. Аутентификация пользователя
+python:app/services/auth_service.py
+startLine: 20
+endLine: 62
+
+
+Сервисный слой выполняет:
+- Поиск существующих OAuth credentials
+- Обновление токенов для существующих пользователей
+- Создание новых пользователей при первом входе
+- Генерацию JWT токена для сессии
+
+## Структура данных
+
+### Модели Pydantic для валидации
+python:app/schemas/auth.py
+startLine: 1
+endLine: 21
+
+
+Основные схемы:
+- `GoogleAuthRequest`: Валидация входящего запроса
+- `OAuthUserCreate`: Создание нового пользователя
+- `OAuthCredentialsCreate`: Сохранение OAuth токенов
+
+## Интеграция с Gmail API
+python:app/utils/gmail_auth.py
+startLine: 11
+endLine: 90
+
+
+Включает:
+- Проверку валидности Gmail токенов
+- Автоматическое обновление просроченных токенов
+- Валидацию необходимых разрешений Gmail API
+
+## Преимущества реализации
+
+1. **Безопасность**:
+   - CSRF защита через state-токен
+   - HTTP-only cookies
+   - Безопасное хранение токенов
+   - Валидация всех токенов и разрешений
+
+2. **Масштабируемость**:
+   - Легкое добавление новых OAuth провайдеров
+   - Поддержка refresh токенов
+   - Асинхронная обработка запросов
+
+3. **Удобство использования**:
+   - Автоматическое обновление токенов
+   - Единый JWT токен для всех сервисов
+   - Простая интеграция с фронтендом
+
+4. **Надежность**:
+   - Комплексная обработка ошибок
+   - Валидация данных через Pydantic
+   - Транзакционные операции с БД
+
+## Требования для развертывания
+
+1. **Google Cloud Project**:
+   - OAuth 2.0 credentials
+   - Настроенные redirect URI
+   - Активированный Gmail API
+
+2. **Переменные окружения**:
+   ```env
+   GOOGLE_CLIENT_ID=your_client_id
+   GOOGLE_CLIENT_SECRET=your_client_secret
+   GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
+   ```
+
+3. **База данных**:
+   - PostgreSQL 12+
+   - Выполненные миграции для OAuth таблиц
+
+## Использование в API
+
+Пример проверки Gmail токена:
+
+python:app/endpoints/assistants/email_assistant.py
+startLine: 1
+endLine: 41
+
+
+Эндпоинт демонстрирует:
+- Проверку валидности токена
+- Автоматическое обновление при необходимости
+- Обработку ошибок доступа
