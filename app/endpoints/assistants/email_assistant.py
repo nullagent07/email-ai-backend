@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from app.utils.gmail_auth import verify_gmail_token
+from app.utils.gmail_auth import verify_gmail_access_token
 
-router = APIRouter()
+router = APIRouter(prefix="/assistants", tags=["auth"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @router.post(
-    "/assistants/email/gmail",
+    "/email/gmail",
     status_code=status.HTTP_200_OK
 )
 async def email_assistant(
@@ -28,7 +28,7 @@ async def email_assistant(
             - 500: При внутренней ошибке сервера
     """
     try:
-        result = await verify_gmail_token(token)
+        result = await verify_gmail_access_token(token)
         print(result)
         return {"status": "success", "message": "Gmail токен валиден"}
             

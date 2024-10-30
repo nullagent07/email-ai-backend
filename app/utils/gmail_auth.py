@@ -8,7 +8,7 @@ from app.core.config import get_app_settings
 from google.auth.transport.requests import Request
 import requests as http_requests
 
-async def verify_gmail_token(access_token: str) -> dict:
+async def verify_gmail_access_token(access_token: str) -> dict:
     """
     Проверяет валидность Gmail access token и обновляет его при необходимости
     
