@@ -225,8 +225,8 @@ endLine: 21
 
 Основные схемы:
 - `GoogleAuthRequest`: Валидация входящего запроса
-- `OAuthUserCreate`: Создание нового пользователя
-- `OAuthCredentialsCreate`: Сохранение OAuth токенов
+- `OAuthUser`: Создание нового пользователя
+- `OAuthCredentials`: Сохранение OAuth токенов
 
 ## Интеграция с Gmail API
 python:app/utils/gmail_auth.py

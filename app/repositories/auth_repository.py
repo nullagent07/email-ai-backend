@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.user import User
 from app.models.oauth_credentials import OAuthCredentials
-from app.schemas.auth import OAuthUserCreate, OAuthCredentialsCreate
+
 
 class AuthRepository:
     def __init__(self, db_session: AsyncSession):
@@ -33,8 +33,8 @@ class AuthRepository:
     
     async def create_user_with_oauth(
         self, 
-        user_data: OAuthUserCreate, 
-        credentials_data: OAuthCredentialsCreate
+        user_data: User, 
+        credentials_data: OAuthCredentials
     ) -> User:
         # Создаем пользователя
         user = User(**user_data.model_dump())

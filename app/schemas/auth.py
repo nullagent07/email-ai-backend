@@ -8,12 +8,12 @@ class GoogleAuthRequest(BaseModel):
     state: Optional[str] = None
     
 # Существующие схемы
-class OAuthUserCreate(BaseModel):
+class OAuthUser(BaseModel):
     email: str
     name: str
     is_subscription_active: bool = False
 
-class OAuthCredentialsCreate(BaseModel):
+class OAuthCredentials(BaseModel):
     provider: str
     email: str
     access_token: str

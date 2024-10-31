@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str
 
+    frontend_url: str = "http://localhost:3000"  # URL вашего фронтенда
+    cookie_domain: str = "localhost"  # Домен для кук
+
     class Config:
         env_file = os.getenv("ENV_FILE", ".env")
 
