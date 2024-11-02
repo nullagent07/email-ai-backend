@@ -1,3 +1,5 @@
+# app/dependencies.py
+
 from collections.abc import AsyncGenerator
 from typing import Annotated
 from fastapi import Depends, HTTPException, status, Request
@@ -6,9 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import get_app_settings
 from app.services.auth_service import AuthService
 from app.repositories.auth_repository import AuthRepository
-from jose import JWTError, jwt
+from jose import JWTError
 from app.models.user import User
-# from app.utils.security import verify_access_token
 from app.core.security import verify_access_token
 
 settings = get_app_settings()
@@ -28,7 +29,7 @@ async_engine = create_async_engine(
 
 # Создаем фабрику сессий
 async_session = async_sessionmaker(
-    async_engine,
+    bind=async_engine,
     expire_on_commit=False,
     class_=AsyncSession,
     autoflush=False,
@@ -36,40 +37,43 @@ async_session = async_sessionmaker(
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Зависимость для получения асинхронной сессии БД."""
-    session = async_session()
-    try:
+    async with async_session() as session:
         yield session
-    finally:
-        await session.close()
 
 def get_auth_service(
     db: Annotated[AsyncSession, Depends(get_db)]
 ) -> AuthService:
     """Возвращает экземпляр AuthService."""
-    return AuthService(AuthRepository(db_session=db))
+    return AuthService(db)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-async def get_current_user(request: Request) -> User:
+async def get_current_user(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """Зависимость для получения текущего аутентифицированного пользователя."""
     token = request.cookies.get("access_token")
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Необходимо авторизоваться",
         )
-    # Убираем префикс "Bearer "
-    token = token.replace("Bearer ", "")
+    # Убираем префикс "Bearer ", если он есть
+    if token.startswith("Bearer "):
+        token = token[len("Bearer "):]
     try:
         # Проверяем и декодируем токен
-        payload = verify_access_token(token)
-        user_id: int = payload.get("sub")
+        payload = verify_access_token(token, settings)
+        user_id: int = int(payload.get("sub"))
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Не удалось получить идентификатор пользователя",
             )
         # Получаем пользователя из базы данных
-        user = await User.get(id=user_id)
+        auth_service = AuthService(db)
+        user = await auth_service.get_user_by_id(user_id)
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -81,4 +85,3 @@ async def get_current_user(request: Request) -> User:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Неверный токен",
         )
-
