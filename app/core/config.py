@@ -30,14 +30,14 @@ class Settings(BaseSettings):
     docs_url: str = "/api/docs"
     openapi_url: str = "/api/openapi.json"
     environment: str = "development"
-    allowed_hosts: List[str] = ["*"]    
+    allowed_hosts: List[str] = ["http://localhost:3000"]    
     access_token_expire_minutes: int = 30
     pool_size: int = 10  # добавьте значение по умолчанию
     secret_key: str
     algorithm: str
 
     frontend_url: str = "http://localhost:3000"  # URL вашего фронтенда
-    cookie_domain: str = "localhost"  # Домен для кук
+    cookie_domain: str = "localhost:3000 "  # Домен для кук
 
     class Config:
         env_file = os.getenv("ENV_FILE", ".env")
@@ -49,4 +49,4 @@ def get_app_settings() -> Settings:
 def get_settings_no_cache() -> Settings:
     return Settings()
 
-# settings = get_app_settings()
+settings = get_app_settings()

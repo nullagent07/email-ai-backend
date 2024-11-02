@@ -11,6 +11,7 @@ from app.models.user import User
 from app.dependencies.dependency import get_current_user
 from datetime import datetime
 from fastapi.responses import RedirectResponse
+from app.core.security import verify_access_token
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -22,13 +23,13 @@ async def google_login(response: Response):
     """Генерирует URL для авторизации через Google"""
     
     # Генерируем state token для безопасности
-    state = secrets.token_urlsafe(32)
+    state_token = secrets.token_urlsafe(32)
     response.set_cookie(
         key="oauth_state",
-        value=state,
+        value=state_token,
         httponly=True,
         secure=False,  # Для localhost используем False
-        samesite="lax",
+        # samesite="lax",
         max_age=600,  # 10 минут
         path="/"
     )
@@ -39,8 +40,9 @@ async def google_login(response: Response):
         "redirect_uri": settings.google_redirect_uri,
         "response_type": "code",
         "scope": " ".join(settings.google_scope),
+        # "scope": settings.google_scope[2],
         "access_type": "offline",  # Для получения refresh_token
-        "state": state,
+        "state": state_token,
         "prompt": "consent"  # Всегда показывать окно согласия
     }
     
@@ -70,29 +72,35 @@ async def google_callback(
     
     access_token, is_new_user = await auth_service.authenticate_oauth_user(token_data)
     
+    redirect_params = {
+        "status": "success",
+        "is_new_user": str(is_new_user).lower(),
+        "code": code,
+        "state": state
+    }
+
+    query_string = "&".join(f"{k}={v}" for k, v in redirect_params.items())
+    redirect_url = f"{settings.frontend_url}/auth/callback?{query_string}"
+
+    response = RedirectResponse(
+        url=redirect_url,
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+    
     # Устанавливаем куки
     response.set_cookie(
         key="access_token",
         value=f"Bearer {access_token}",
         httponly=True,
-        secure=True,  # Для HTTPS
-        samesite="lax",
+        secure=False,  # True для HTTPS
+        # samesite="none",
         max_age=settings.access_token_expire_minutes * 60,
-        domain=settings.cookie_domain  # Домен для кук
+        # domain=settings.cookie_domain,  # Домен для кук
     )
-    
+
     # Формируем URL для редиректа с параметрами
-    redirect_params = {
-        "status": "success",
-        "is_new_user": str(is_new_user).lower()
-    }
-    query_string = "&".join(f"{k}={v}" for k, v in redirect_params.items())
-    redirect_url = f"{settings.frontend_url}/auth/callback?{query_string}"
     
-    return RedirectResponse(
-        url=redirect_url,
-        status_code=status.HTTP_303_SEE_OTHER
-    )
+    return response
 
 @router.post("/set-password")
 async def set_password(
@@ -111,48 +119,46 @@ async def set_password(
 
 @router.get("/check")
 async def check_auth(
+    request: Request,
     current_user: User = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """
-    Проверяет валидность текущей сессии пользователя и обновляет Google токены при необходимости
-    
-    Returns:
-        dict: Информация о текущем пользователе и статус токенов
-        
-    Raises:
-        HTTPException: 401 если пользователь не авторизован
-    """
-    # Получаем OAuth credentials пользователя
-    oauth_creds = await auth_service._repository.get_oauth_credentials(
-        email=current_user.email,
-        provider="google"
-    )
-    
-    google_token_status = None
-    if oauth_creds:
-        try:
-            # Проверяем срок действия Google токена
-            if oauth_creds.expires_at < datetime.utcnow():
-                # Обновляем токен если истек
-                token_info = await auth_service.refresh_google_token(oauth_creds)
-                google_token_status = "refreshed"
-            else:
-                google_token_status = "valid"
-        except HTTPException:
-            google_token_status = "invalid"
-    
-    return {
-        "authenticated": True,
-        "user": {
-            "id": current_user.id,
-            "email": current_user.email,
-            "name": current_user.name
-        },
-        "google_oauth": {
-            "connected": bool(oauth_creds),
-            "token_status": google_token_status
-        }
-    }
+    """Проверяет валидность пользователя по access_token из куки"""
 
+    # Извлекаем access_token из куки
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Access token is missing"
+        )
 
+    # Удаляем "Bearer " если он есть
+    if access_token.startswith("Bearer "):
+        access_token = access_token.split(" ")[1]
+
+    # Проверяем валидность токена
+    payload = verify_access_token(access_token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid access token"
+        )
+
+    # Извлекаем user_id из полезной нагрузки токена
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found in token"
+        )
+
+    # Получаем пользователя из базы данных
+    user = await auth_service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    return {"status": "success", "user": {"id": user.id, "username": user.username}}

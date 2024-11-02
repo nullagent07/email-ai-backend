@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 from typing import Annotated
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from app.core.config import get_app_settings
@@ -8,6 +8,8 @@ from app.services.auth_service import AuthService
 from app.repositories.auth_repository import AuthRepository
 from jose import JWTError, jwt
 from app.models.user import User
+# from app.utils.security import verify_access_token
+from app.core.security import verify_access_token
 
 settings = get_app_settings()
 
@@ -48,35 +50,35 @@ def get_auth_service(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    auth_service: Annotated[AuthService, Depends(get_auth_service)]
-) -> User:
-    """
-    Зависимость для получения текущего пользователя
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    
-    try:
-        payload = jwt.decode(
-            token, 
-            settings.secret_key, 
-            algorithms=[settings.algorithm]
+async def get_current_user(request: Request) -> User:
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Необходимо авторизоваться",
         )
+    # Убираем префикс "Bearer "
+    token = token.replace("Bearer ", "")
+    try:
+        # Проверяем и декодируем токен
+        payload = verify_access_token(token)
         user_id: int = payload.get("sub")
         if user_id is None:
-            raise credentials_exception
-            
-        user = await auth_service._repository.get_user_by_id(user_id)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Не удалось получить идентификатор пользователя",
+            )
+        # Получаем пользователя из базы данных
+        user = await User.get(id=user_id)
         if user is None:
-            raise credentials_exception
-            
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Пользователь не найден",
+            )
         return user
-        
     except JWTError:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Неверный токен",
+        )
 
