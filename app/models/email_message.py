@@ -1,6 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
 import enum
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from .user import Base
 
 class MessageType(enum.Enum):
@@ -10,8 +12,8 @@ class MessageType(enum.Enum):
 class EmailMessage(Base):
     __tablename__ = 'email_messages'
 
-    id = Column(Integer, primary_key=True, index=True)
-    thread_id = Column(Integer, ForeignKey('email_threads.id'), nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    thread_id = Column(UUID(as_uuid=True), ForeignKey('email_threads.id'), nullable=False)
     message_type = Column(Enum(MessageType), nullable=False)
     subject = Column(String, nullable=False)
     content = Column(String, nullable=False)

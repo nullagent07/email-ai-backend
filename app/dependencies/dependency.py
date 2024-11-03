@@ -50,7 +50,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 async def get_current_user(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends(get_auth_service)
 ) -> User:
     """Зависимость для получения текущего аутентифицированного пользователя."""
     token = request.cookies.get("access_token")
@@ -65,14 +66,13 @@ async def get_current_user(
     try:
         # Проверяем и декодируем токен
         payload = verify_access_token(token, settings)
-        user_id: int = int(payload.get("sub"))
+        user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Не удалось получить идентификатор пользователя",
             )
         # Получаем пользователя из базы данных
-        auth_service = AuthService(db)
         user = await auth_service.get_user_by_id(user_id)
         if user is None:
             raise HTTPException(
