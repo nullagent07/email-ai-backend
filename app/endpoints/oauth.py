@@ -53,12 +53,20 @@ async def google_login(response: Response):
 @router.get("/google/callback")
 async def google_callback(
     request: Request,
-    code: str,
-    state: str,
     response: Response,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    code: str = None,
+    state: str = None,
+    error: str = None,
 ):
     """Обрабатывает callback от Google после авторизации и редиректит на фронтенд"""
+    
+    # Проверяем наличие ошибки
+    if error:
+        # Формируем URL для редиректа на фронтенд с сообщением об ошибке
+        redirect_url = f"{settings.frontend_url}/auth/callback?error={error}&state={state}"
+        return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
     # Проверяем state token
     oauth_state = request.cookies.get("oauth_state")
     if not oauth_state or oauth_state != state:
@@ -85,7 +93,7 @@ async def google_callback(
 
     query_string = "&".join(f"{k}={v}" for k, v in redirect_params.items())
     redirect_url = f"{settings.frontend_url}/auth/callback?{query_string}"
-
+    
     response = RedirectResponse(
         url=redirect_url,
         status_code=status.HTTP_303_SEE_OTHER
