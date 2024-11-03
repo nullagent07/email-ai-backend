@@ -60,18 +60,27 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Необходимо авторизоваться",
         )
+    
     # Убираем префикс "Bearer ", если он есть
     if token.startswith("Bearer "):
         token = token[len("Bearer "):]
+    
     try:
-        # Проверяем и декодируем токен
-        payload = verify_access_token(token, settings)
+        # Проверяем и декодируем токен        
+        payload = verify_access_token(token)
+        if payload is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверный токен",
+            )
+        
         user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Не удалось получить идентификатор пользователя",
             )
+        
         # Получаем пользователя из базы данных
         user = await auth_service.get_user_by_id(user_id)
         if user is None:
@@ -79,6 +88,7 @@ async def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Пользователь не найден",
             )
+        
         return user
     except JWTError:
         raise HTTPException(

@@ -1,5 +1,6 @@
 # app/schemas/user_schema.py
 from pydantic import BaseModel, EmailStr
+from uuid import UUID
 
 class UserBase(BaseModel):
     name: str
@@ -8,8 +9,9 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
-class UserResponse(UserBase):
-    id: int
+class UserResponse(BaseModel):
+    name: str
+    email: str
     is_subscription_active: bool
 
     class Config:

@@ -1,9 +1,8 @@
 from fastapi import APIRouter
 
-from app.endpoints.assistants import email_assistant
-from app.endpoints.auth import oauth
+from app.endpoints import oauth, user
 
 routers = APIRouter()
 
-routers.include_router(email_assistant.router)
 routers.include_router(oauth.router)
+routers.include_router(user.router)
