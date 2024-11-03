@@ -8,12 +8,37 @@ from app.models.oauth_credentials import OAuthCredentials
 from app.schemas.oauth_credentials_schema import OAuthCredentialsCreate
 from app.core.security import create_access_token, hash_password
 from datetime import datetime, timedelta
+from sqlalchemy.exc import IntegrityError
 
 class AuthService:
     def __init__(self, db: AsyncSession):
         self.user_repository = UserRepository(db)
         self.oauth_repo = OAuthCredentialsRepository(db)
         self.db = db
+
+    async def register_user(self, name: str, email: str, password: str) -> User:
+        # Проверяем, существует ли пользователь с таким email
+        existing_user = await self.user_repository.get_user_by_email(email)
+        if existing_user:
+            raise ValueError("User with this email already exists")
+
+        # Хэшируем пароль
+        hashed_password = hash_password(password)
+
+        # Создаем нового пользователя
+        new_user = User(
+            name=name,
+            email=email,
+            password_hash=hashed_password,
+            is_subscription_active=False  # По умолчанию
+        )
+
+        try:
+            user = await self.user_repository.create_user(new_user)
+            return user
+        except IntegrityError:
+            # Обработка ошибки, если пользователь с таким email уже существует
+            raise ValueError("User with this email already exists")
 
     async def authenticate_oauth_user(self, token_data: dict):
         # Извлекаем информацию о пользователе из token_data
@@ -29,7 +54,7 @@ class AuthService:
         is_new_user = False
 
         if not user:
-            # Создаем нового пользователя
+            # Создаем нового пользователя без пароля
             new_user = User(
                 name=name,
                 email=email,
