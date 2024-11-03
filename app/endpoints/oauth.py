@@ -109,3 +109,15 @@ async def google_callback(
     )
     
     return response
+
+@router.post("/logout")
+async def logout(response: Response):
+    """Logout пользователя и удаление access_token"""
+
+    try:
+        # Удаляем куки с access_token
+        response.delete_cookie(key="access_token")
+        return {"detail": "Logout successful"}
+    except Exception as e:
+        print("Ошибка при удалении куки:", e)
+        return {"detail": "Logout failed", "error": str(e)}
