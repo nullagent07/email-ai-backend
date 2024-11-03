@@ -38,7 +38,7 @@ async def google_login(response: Response):
         "client_id": settings.google_client_id,
         "redirect_uri": settings.google_redirect_uri,
         "response_type": "code",
-        "scope": " ".join(settings.google_basic_scope),
+        "scope": " ".join(settings.google_scope),
         "access_type": "offline",  # Для получения refresh_token
         "state": state_token,
         "prompt": "consent"  # Всегда показывать окно согласия
@@ -53,20 +53,12 @@ async def google_login(response: Response):
 @router.get("/google/callback")
 async def google_callback(
     request: Request,
+    code: str,
+    state: str,
     response: Response,
-    db: AsyncSession = Depends(get_db),
-    code: str = None,
-    state: str = None,
-    error: str = None,
+    db: AsyncSession = Depends(get_db)
 ):
     """Обрабатывает callback от Google после авторизации и редиректит на фронтенд"""
-    
-    # Проверяем наличие ошибки
-    if error:
-        # Формируем URL для редиректа на фронтенд с сообщением об ошибке
-        redirect_url = f"{settings.frontend_url}/auth/callback?error={error}&state={state}"
-        return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
-
     # Проверяем state token
     oauth_state = request.cookies.get("oauth_state")
     if not oauth_state or oauth_state != state:
@@ -93,7 +85,7 @@ async def google_callback(
 
     query_string = "&".join(f"{k}={v}" for k, v in redirect_params.items())
     redirect_url = f"{settings.frontend_url}/auth/callback?{query_string}"
-    
+
     response = RedirectResponse(
         url=redirect_url,
         status_code=status.HTTP_303_SEE_OTHER
@@ -109,15 +101,3 @@ async def google_callback(
     )
     
     return response
-
-@router.post("/logout")
-async def logout(response: Response):
-    """Logout пользователя и удаление access_token"""
-
-    try:
-        # Удаляем куки с access_token
-        response.delete_cookie(key="access_token")
-        return {"detail": "Logout successful"}
-    except Exception as e:
-        print("Ошибка при удалении куки:", e)
-        return {"detail": "Logout failed", "error": str(e)}
