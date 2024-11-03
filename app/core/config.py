@@ -19,12 +19,23 @@ class Settings(BaseSettings):
     google_client_id: str
     google_client_secret: str
     google_redirect_uri: str
-    google_scope: list[str] = [
+    # google_scope: list[str] = [
+    #     "https://www.googleapis.com/auth/userinfo.profile",
+    #     "https://www.googleapis.com/auth/userinfo.email",
+    #     "https://www.googleapis.com/auth/gmail.readonly",
+    #     "https://www.googleapis.com/auth/gmail.send",
+    # ]
+
+    google_basic_scope: list[str] = [
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/userinfo.email",
+    ]
+
+    google_extended_scope: list[str] = [
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.send",
-        "https://www.googleapis.com/auth/userinfo.profile",
-        "https://www.googleapis.com/auth/userinfo.email"
     ]
+
 
     api_prefix: str = "/api"
     docs_url: str = "/api/docs"

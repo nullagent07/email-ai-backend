@@ -38,7 +38,7 @@ async def google_login(response: Response):
         "client_id": settings.google_client_id,
         "redirect_uri": settings.google_redirect_uri,
         "response_type": "code",
-        "scope": " ".join(settings.google_scope),
+        "scope": " ".join(settings.google_basic_scope),
         "access_type": "offline",  # Для получения refresh_token
         "state": state_token,
         "prompt": "consent"  # Всегда показывать окно согласия
