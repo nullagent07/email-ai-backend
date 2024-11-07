@@ -2,12 +2,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.oauth_credentials import OAuthCredentials
+from uuid import UUID
 
 class OAuthCredentialsRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_user_id_and_provider(self, user_id: int, provider: str) -> OAuthCredentials:
+    async def get_by_user_id_and_provider(self, user_id: UUID, provider: str) -> OAuthCredentials:
         result = await self.db.execute(
             select(OAuthCredentials).filter(
                 OAuthCredentials.user_id == user_id,

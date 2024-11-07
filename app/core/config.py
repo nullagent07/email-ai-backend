@@ -2,7 +2,7 @@ import os
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
-from typing import List
+from typing import List, Optional
 import os
 
 load_dotenv()
@@ -31,11 +31,10 @@ class Settings(BaseSettings):
         "https://www.googleapis.com/auth/userinfo.email",
     ]
 
-    google_extended_scope: list[str] = [
+    google_extended_scope: list[str] = google_basic_scope + [
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.send",
     ]
-
 
     api_prefix: str = "/api"
     docs_url: str = "/api/docs"
@@ -49,6 +48,10 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:3000"  # URL вашего фронтенда
     cookie_domain: str = "localhost:3000 "  # Домен для кук
+
+    # OpenAI settings
+    openai_api_key: str = "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"
+    openai_base_assistant_id: str = "asst_cYTPINH01O8gjYMjjewn0yOg" # ID предварительно созданного базового ассистента
 
     class Config:
         env_file = os.getenv("ENV_FILE", ".env")

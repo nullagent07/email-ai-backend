@@ -9,7 +9,7 @@ from app.core.exception_handler import (
     starlette_http_exception_handler,
 )
 from app.core.logging_config import setup_json_logging
-from app.endpoints.api import routers
+from app.endpoints.api_endpoint import routers
 from fastapi import FastAPI
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.staticfiles import StaticFiles

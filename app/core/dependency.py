@@ -60,7 +60,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Необходимо авторизоваться",
         )
-    
+
     # Убираем префикс "Bearer ", если он есть
     if token.startswith("Bearer "):
         token = token[len("Bearer "):]
@@ -88,7 +88,7 @@ async def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Пользователь не найден",
             )
-        
+
         return user
     except JWTError:
         raise HTTPException(

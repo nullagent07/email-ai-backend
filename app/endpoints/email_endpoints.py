@@ -9,10 +9,10 @@ from app.schemas.email_thread_schema import EmailThreadCreate, EmailThreadRespon
 from app.core.dependency import get_db, get_current_user
 from app.models.user import User
 
-router = APIRouter(prefix="/emails", tags=["emails"])
+router = APIRouter(prefix="/email", tags=["email"])
 
 # Эндпоинт для создания нового email-потока
-@router.post("/threads/", response_model=EmailThreadResponse)
+@router.post("/gmail/threads/", response_model=EmailThreadResponse)
 async def create_thread(
     thread_data: EmailThreadCreate,
     db: AsyncSession = Depends(get_db),
