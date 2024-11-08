@@ -6,6 +6,7 @@ from models.user import Base
 from models.email_thread import EmailThread
 from models.email_message import EmailMessage
 from models.oauth_credentials import OAuthCredentials
+from models.assistant import AssistantProfile
 
 # Получение настроек приложения
 app_settings = get_app_settings()

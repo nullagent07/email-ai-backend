@@ -21,3 +21,6 @@ class User(Base):
         back_populates="user",
         uselist=False
     )
+    
+    # Один пользователь может иметь много ассистентов
+    assistants = relationship("AssistantProfile", back_populates="user")

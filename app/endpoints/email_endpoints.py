@@ -22,7 +22,7 @@ async def create_thread(
     try:
         # Устанавливаем текущего пользователя как владельца потока
         thread_data.user_id = current_user.id
-        thread = await email_service.create_email_thread(thread_data)
+        thread = await email_service.create_gmail_thread(thread_data)
         return thread
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

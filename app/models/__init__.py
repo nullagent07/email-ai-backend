@@ -3,10 +3,12 @@ from .user import User
 from .oauth_credentials import OAuthCredentials
 from .email_thread import EmailThread
 from .email_message import EmailMessage
+from .assistant import AssistantProfile
 
 __all__ = [
     "User",
     "OAuthCredentials",
     "EmailThread",
     "EmailMessage",
+    "AssistantProfile"
 ]

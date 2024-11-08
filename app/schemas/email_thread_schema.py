@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import datetime
 from enum import Enum
 from uuid import UUID
-
+from .assistant_profile_schema import AssistantProfileCreate
 class ThreadStatus(str, Enum):
     ACTIVE = "active"
     CLOSED = "closed"
@@ -14,16 +14,17 @@ class EmailThreadBase(BaseModel):
     
 
 class EmailThreadCreate(EmailThreadBase):
-    email: str
-    name : str
-    assistant_description: str
+    recipient_email: str  # Email адрес получателя
+    recipient_name: str   # Имя получателя
+    assistant: str        # ID или имя ассистента
+    # assistant: AssistantProfileCreate 
 
 class EmailThreadUpdate(EmailThreadBase):
     status: ThreadStatus
 
 class EmailThreadResponse(EmailThreadBase):
-    id: int
-    user_id: int
+    id: str
+    user_id: UUID
     creation_date: datetime
     status: ThreadStatus
 

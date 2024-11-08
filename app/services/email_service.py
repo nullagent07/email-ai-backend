@@ -29,10 +29,8 @@ class EmailService:
         self.openai_service = OpenAIService()
 
     # Методы для EmailThread
-    async def create_email_thread(self, thread_data: EmailThreadCreate) -> EmailThread:
-
+    async def create_gmail_thread(self, thread_data: EmailThreadCreate) -> EmailThread:
         # 1. Получаем OAuth credentials для Gmail
-        # oauth_repo = OAuthCredentialsRepository(self.db)
         oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(
             thread_data.user_id, 
             "google"
@@ -41,18 +39,64 @@ class EmailService:
         if not oauth_creds:
             raise ValueError("Gmail credentials not found")
 
-        # 2. Создаем тред в OpenAI с начальным сообщением
-        openai_thread_id, initial_message = await self.openai_service.create_thread_with_initial_message(
-            name=thread_data.name,
-            description=thread_data.assistant_description
+        # 2. Создаем ассистента в OpenAI с подробными инструкциями
+        assistant_id = await self.openai_service.create_assistant(
+            name=f"Email Assistant for {thread_data.recipient_name}",
+            instructions=f"""Ты - умный email ассистент, который помогает вести переписку с {thread_data.recipient_name}.
+            
+            Основные правила:
+            1. Всегда пиши в деловом, но дружелюбном тоне
+            2. Используй обращение по имени: {thread_data.recipient_name}
+            3. Подписывайся в конце каждого письма
+            4. Следи за контекстом всей переписки
+            5. Если не уверен в чем-то, задавай уточняющие вопросы
+            6. Всегда форматируй текст для email (с приветствием и подписью)
+            
+            Дополнительный контекст:
+            {thread_data.assistant}
+            """
         )
         
-        # 3. Отправляем email через Gmail API
+        # 3. Создаем тред с начальным контекстом
+        openai_thread_id, _ = await self.openai_service.create_thread_with_initial_message(
+            user_name=thread_data.recipient_name,
+            thread_description=f"""Это начало email переписки с {thread_data.recipient_name}.
+            
+            Напиши первое приветственное письмо, учитывая следующий контекст:
+            {thread_data.assistant}
+            
+            Письмо должно:
+            1. Начинаться с приветствия
+            2. Представить себя как описано в контексте
+            3. Объяснить цель переписки
+            4. Закончиться вежливой подписью
+            """
+        )
+        
+        # 4. Запускаем ассистента для генерации ответа
+        run_id = await self.openai_service.run_assistant(
+            thread_id=openai_thread_id,
+            assistant_id=assistant_id
+        )
+        
+        # 5. Получаем сгенерированный ответ
+        initial_message = await self.openai_service.get_response(
+            thread_id=openai_thread_id,
+            run_id=run_id
+        )
+        
+        if not initial_message:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to generate initial message"
+            )
+        
+        # 6. Отправляем email через Gmail API
         message = {
             'raw': base64.urlsafe_b64encode(
                 f"""From: {oauth_creds.email}\r\n\
-To: {thread_data.email}\r\n\
-Subject: New conversation with {thread_data.name}\r\n\
+To: {thread_data.recipient_email}\r\n\
+Subject: New conversation with {thread_data.recipient_name}\r\n\
 MIME-Version: 1.0\r\n\
 Content-Type: text/html; charset=utf-8\r\n\
 \r\n\
@@ -70,36 +114,37 @@ Content-Type: text/html; charset=utf-8\r\n\
                     "client_secret": settings.google_client_secret,
                 },
             )
-
-            # print("creds", creds)
             
             service = build('gmail', 'v1', credentials=creds)
             service.users().messages().send(userId="me", body=message).execute()
             
         except Exception as e:
+            # В случае ошибки удаляем созданного ассистента
+            await self.openai_service.delete_assistant(assistant_id)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to send email: {str(e)}"
             )
         
-        # 4. Создаем email тред в базе
-        new_thread = EmailThread(
-            user_id=thread_data.user_id,
-            thread_name=thread_data.thread_name,
-            description=thread_data.description,
-            status=ThreadStatus.ACTIVE,
-            openai_thread_id=openai_thread_id
-        )
-        thread = await self.thread_repo.create_thread(new_thread)
-        
-        # 5. Сохраняем профиль ассистента в базе
+        # 7. Создаем профиль ассистента в базе
         assistant_profile = AssistantProfile(
-            user_id=thread_data.email,
+            id=assistant_id,
+            user_id=thread_data.user_id,
             name=thread_data.name,
-            description=thread_data.assistant_description,
-            thread_id=thread.id
+            description=thread_data.assistant_description
         )
         await self.assistant_repo.create_assistant_profile(assistant_profile)
+        
+        # 8. Создаем email тред в базе
+        new_thread = EmailThread(
+            id=openai_thread_id,
+            user_id=thread_data.user_id,
+            thread_name=thread_data.email,
+            description=thread_data.assistant_description,
+            status=ThreadStatus.ACTIVE,
+            assistant_id=assistant_id
+        )
+        thread = await self.thread_repo.create_thread(new_thread)
         
         return thread
 

@@ -13,7 +13,7 @@ class EmailMessage(Base):
     __tablename__ = 'email_messages'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    thread_id = Column(UUID(as_uuid=True), ForeignKey('email_threads.id'), nullable=False)
+    thread_id = Column(String, ForeignKey('email_threads.id'), nullable=False)
     message_type = Column(Enum(MessageType), nullable=False)
     subject = Column(String, nullable=False)
     content = Column(String, nullable=False)
