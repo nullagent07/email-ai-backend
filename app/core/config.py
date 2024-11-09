@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     google_extended_scope: list[str] = google_basic_scope + [
         "https://www.googleapis.com/auth/gmail.readonly",
         "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.modify"
     ]
 
     api_prefix: str = "/api"
@@ -52,6 +53,9 @@ class Settings(BaseSettings):
     # OpenAI settings
     openai_api_key: str = "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"
     openai_base_assistant_id: str = "asst_cYTPINH01O8gjYMjjewn0yOg" # ID предварительно созданного базового ассистента
+
+    google_project_id: str = "effective-reach-425812-u0"
+    google_topic_id: str = "l6E-5+QaFnBk-l"
 
     class Config:
         env_file = os.getenv("ENV_FILE", ".env")

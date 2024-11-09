@@ -1,6 +1,6 @@
 # app/endpoints/email_endpoints.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.services.email_service import EmailService
@@ -128,3 +128,49 @@ async def get_message_by_id(
         return message
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/gmail/webhook")
+async def gmail_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        data = await request.json()
+        
+        # Извлекаем данные из уведомления Gmail
+        if 'message' not in data:
+            return {"status": "skipped", "reason": "Not a message notification"}
+            
+        # Получаем thread_id из топика
+        topic_name = data.get('subscription', '').split('/')[-1]
+        thread_id = topic_name.replace('gmail-', '')
+        
+        # Инициализируем сервисы
+        gmail_service = GmailService(db)
+        email_service = EmailService(db)
+        
+        # Получаем тред
+        thread = await email_service.thread_repo.get_thread_by_id(thread_id)
+        if not thread:
+            return {"status": "error", "detail": "Thread not found"}
+            
+        # Получаем пользователя через тред
+        user = await email_service.user_repo.get_user_by_id(thread.user_id)
+        if not user:
+            return {"status": "error", "detail": "User not found"}
+            
+        # Обрабатываем входящее письмо
+        await gmail_service.process_incoming_email(
+            email_data=data,
+            email_thread=thread,
+            user=user
+        )
+        
+        return {"status": "success"}
+        
+    except Exception as e:
+        print(f"Error processing Gmail webhook: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process Gmail notification: {str(e)}"
+        )

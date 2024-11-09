@@ -13,6 +13,9 @@ from app.core.config import get_app_settings
 from app.repositories.email_thread_repository import EmailThreadRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.email_thread_schema import EmailThreadCreate
+from app.models.email_message import EmailMessage, MessageType
+from app.repositories.email_message_repository import EmailMessageRepository
+from uuid import UUID
 
 settings = get_app_settings()
 
@@ -24,13 +27,14 @@ class GmailService:
         self.thread_repo = EmailThreadRepository(db)
         self.assistant_repo = AssistantRepository(db)
         self.openai_service = OpenAIService()
+        self.message_repo = EmailMessageRepository(db)
         
-    async def setup_email_monitoring(self, email_thread: EmailThread, user: User):
+    async def setup_email_monitoring(self, user_id: UUID):
         """Настраивает отслеживание писем для активного треда"""
         
         # Получаем OAuth credentials
         oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(
-            user.id, 
+            user_id, 
             "google"
         )
         
@@ -52,15 +56,12 @@ class GmailService:
         # Настраиваем push-уведомления
         request = {
             'labelIds': ['INBOX'],
-            'topicName': f'projects/{settings.google_project_id}/topics/gmail-{email_thread.id}'
+            'topicName': f'projects/{settings.google_project_id}/topics/{settings.google_topic_id}'
         }
         
         try:
             # Активируем отслеживание
             service.users().watch(userId='me', body=request).execute()
-            
-            # Сохраняем информацию о мониторинге
-            await self.save_monitoring_info(email_thread.id, user.id)
             
         except Exception as e:
             raise HTTPException(
@@ -75,53 +76,80 @@ class GmailService:
         if email_thread.status != ThreadStatus.ACTIVE:
             return
             
-        # Получаем OAuth credentials
-        oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(
-            user.id, 
-            "google"
-        )
-        
-        # Создаем сервис Gmail API
-        service = build('gmail', 'v1', credentials=Credentials.from_authorized_user_info(
-            info={
-                "token": oauth_creds.access_token,
-                "refresh_token": oauth_creds.refresh_token,
-                "client_id": settings.google_client_id,
-                "client_secret": settings.google_client_secret,
-            }
-        ))
-        
         try:
-            # Получаем полное сооб��ение
-            message = service.users().messages().get(
+            # Получаем OAuth credentials
+            oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(
+                user.id, 
+                "google"
+            )
+            
+            if not oauth_creds:
+                raise ValueError("Gmail credentials not found")
+                
+            # Создаем Gmail API клиент
+            gmail = build('gmail', 'v1', credentials=Credentials.from_authorized_user_info(
+                info={
+                    "token": oauth_creds.access_token,
+                    "refresh_token": oauth_creds.refresh_token,
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret,
+                }
+            ))
+            
+            # Получаем полное сообщение
+            message = gmail.users().messages().get(
                 userId='me',
                 id=email_data['message']['id'],
                 format='full'
             ).execute()
             
-            # Извлекаем содержимое письма
-            email_content = self.extract_email_content(message)
+            # Извлекаем содержимое
+            email_content = self._extract_email_content(message)
             
-            # Отправляем в OpenAI тред
-            response = await self.openai_service.run_thread(
+            # Сохраняем входящее сообщение в БД
+            await self.message_repo.create_message(EmailMessage(
+                thread_id=email_thread.id,
+                message_type=MessageType.INCOMING,
+                subject=email_content['subject'],
+                content=email_content['body'],
+                sender_email=email_content['from'],
+                recipient_email=oauth_creds.email
+            ))
+            
+            # Отправляем в OpenAI и получаем ответ
+            ai_response = await self.openai_service.run_thread(
                 thread_id=email_thread.id,
                 assistant_id=email_thread.assistant_id,
-                instructions=email_content,
+                instructions=email_content['body'],
                 timeout=30.0
             )
             
-            if response:
-                # Отправляем ответ
+            if ai_response:
+                # Отправляем ответ через Gmail
                 await self.send_email_response(
-                    service=service,
+                    service=gmail,
                     thread_id=email_thread.id,
                     to=email_content['from'],
                     subject=f"Re: {email_content['subject']}",
-                    content=response
+                    content=ai_response
                 )
                 
+                # Сохраняем исходящее сообщение в БД
+                await self.message_repo.create_message(EmailMessage(
+                    thread_id=email_thread.id,
+                    message_type=MessageType.OUTGOING,
+                    subject=f"Re: {email_content['subject']}",
+                    content=ai_response,
+                    sender_email=oauth_creds.email,
+                    recipient_email=email_content['from']
+                ))
+                
         except Exception as e:
-            print(f"Error processing email: {str(e)}")
+            print(f"Error processing incoming email: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to process incoming email: {str(e)}"
+            )
             
     def extract_email_content(self, message: dict) -> dict:
         """Извлекает содержимое из Gmail сообщения"""
@@ -180,14 +208,14 @@ class GmailService:
                • Для списков используй <ul> и <li>
                • Важные части можно выделить <strong>
             
-            3. Пример структуры:
+            3. Прмер структуры:
             
             <div style="margin-bottom: 20px">
             Уважаемый {thread_data.recipient_name}!
             </div>
             
             <div style="margin-bottom: 15px; text-indent: 20px">
-            Надеюсь, это письмо найдет Вас в добром здравии. [Основная мысль первого абзаца...]
+            Надеюсь, это письмо найдет Вас в добром здравии. [Оcновная мысль первого абзаца...]
             </div>
             
             <div style="margin-bottom: 15px; text-indent: 20px">
@@ -246,7 +274,7 @@ class GmailService:
                 2. Контекст переписки
                 3. Деловой стиль
                 """,
-                timeout=15.0  # таймаут
+                timeout=30.0  # таймаут
             )
             
             if initial_message is None:
@@ -291,6 +319,9 @@ Content-Type: text/html; charset=utf-8\r\n\
             
             service = build('gmail', 'v1', credentials=creds)
             service.users().messages().send(userId="me", body=message).execute()
+            
+            # Настраиваем мониторинг писем для созданного треда
+            await self.setup_email_monitoring(thread_data.user_id)
             
         except Exception as e:
             # В случае ошибки удаляем созданного ассистента
