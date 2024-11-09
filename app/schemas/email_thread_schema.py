@@ -24,8 +24,7 @@ class EmailThreadUpdate(EmailThreadBase):
 
 class EmailThreadResponse(EmailThreadBase):
     id: str
-    user_id: UUID
-    creation_date: datetime
+    # creation_date: datetime
     status: ThreadStatus
 
     class Config:

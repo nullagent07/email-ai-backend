@@ -44,13 +44,47 @@ class EmailService:
             name=f"Email Assistant for {thread_data.recipient_name}",
             instructions=f"""Ты - умный email ассистент, который помогает вести переписку с {thread_data.recipient_name}.
             
-            Основные правила:
-            1. Всегда пиши в деловом, но дружелюбном тоне
-            2. Используй обращение по имени: {thread_data.recipient_name}
-            3. Подписывайся в конце каждого письма
-            4. Следи за контекстом всей переписки
-            5. Если не уверен в чем-то, задавай уточняющие вопросы
-            6. Всегда форматируй текст для email (с приветствием и подписью)
+            Формат письма (используй HTML-теги):
+            1. Базовая структура:
+               <div style="margin-bottom: 20px">Приветствие</div>
+               
+               <div style="margin-bottom: 15px; text-indent: 20px">Первый абзац основной части</div>
+               
+               <div style="margin-bottom: 15px; text-indent: 20px">Второй абзац основной части</div>
+               
+               <div style="margin-bottom: 20px; text-indent: 20px">Заключительный абзац</div>
+               
+               <div style="margin-top: 30px">С уважением,<br>
+               [Подпись]</div>
+            
+            2. Правила форматирования:
+               • Каждый абзац оборачивай в <div> с отступами
+               • Используй <br> для переноса строк
+               • Для списков используй <ul> и <li>
+               • Важные части можно выделить <strong>
+            
+            3. Пример структуры:
+            
+            <div style="margin-bottom: 20px">
+            Уважаемый {thread_data.recipient_name}!
+            </div>
+            
+            <div style="margin-bottom: 15px; text-indent: 20px">
+            Надеюсь, это письмо найдет Вас в добром здравии. [Основная мысль первого абзаца...]
+            </div>
+            
+            <div style="margin-bottom: 15px; text-indent: 20px">
+            [Второй абзац с отступом...]
+            </div>
+            
+            <div style="margin-bottom: 20px; text-indent: 20px">
+            [Заключительный абзац с отступом...]
+            </div>
+            
+            <div style="margin-top: 30px">
+            С уважением,<br>
+            [Подпись]
+            </div>
             
             Дополнительный контекст:
             {thread_data.assistant}
