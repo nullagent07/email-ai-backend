@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     docs_url: str = "/api/docs"
     openapi_url: str = "/api/openapi.json"
     environment: str = "development"
-    allowed_hosts: List[str] = ["http://localhost:3000"]    
+    allowed_hosts: List[str] = ["http://localhost:3000"]
     access_token_expire_minutes: int = 30
     pool_size: int = 10  # добавьте значение по умолчанию
     secret_key: str

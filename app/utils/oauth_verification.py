@@ -5,7 +5,7 @@ from app.core.config import get_app_settings
 
 settings = get_app_settings()
 
-async def verify_oauth_code(code: str, settings):
+async def verify_oauth_code(code: str):
     token_url = "https://oauth2.googleapis.com/token"
     data = {
         "code": code,

@@ -3,15 +3,10 @@
 from fastapi import APIRouter, Depends, Response, Request, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
-from app.services.auth_service import AuthService
-from app.schemas.oauth_credentials_schema import OAuthCredentialsCreate, OAuthCredentialsResponse
-from app.schemas.user_schema import UserResponse
-from app.core.dependency import get_db, get_current_user
+from app.services.oauth_service import OAuthService
+from app.core.dependency import get_db
 from app.core.config import get_app_settings
-from app.core.security import verify_access_token
 from app.utils.oauth_verification import verify_oauth_code
-from datetime import datetime
 import secrets
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -73,15 +68,15 @@ async def google_callback(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid state token")
     
     # Проверяем код авторизации и получаем данные токена
-    token_data = await verify_oauth_code(code, settings)
+    token_data = await verify_oauth_code(code)
     if not token_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to verify Google token")
     
     # Инициализируем AuthService
-    auth_service = AuthService(db)
+    oauth_service = OAuthService(db)
     
     # Аутентифицируем или регистрируем пользователя
-    access_token, is_new_user = await auth_service.authenticate_oauth_user(token_data)
+    access_token, is_new_user = await oauth_service.authenticate_oauth_user(token_data)
     
     # Формируем URL для редиректа
     redirect_params = {

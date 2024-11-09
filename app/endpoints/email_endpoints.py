@@ -9,6 +9,13 @@ from app.schemas.email_message_schema import EmailMessageCreate, EmailMessageRes
 from app.schemas.email_thread_schema import EmailThreadCreate, EmailThreadResponse, ThreadStatus
 from app.core.dependency import get_db, get_current_user
 from app.models.user import User
+import json
+import base64
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
+from app.core.config import settings
+from app.services.oauth_service import OAuthService
 
 router = APIRouter(prefix="/email", tags=["email"])
 
@@ -50,7 +57,7 @@ async def close_thread(
 ):
     email_service = EmailService(db)
     try:
-        # Проверяем, принадлежит ли поток текущему пользователю
+        # Проверяем, принадлежит и поток текущему пользователю
         thread = await email_service.get_thread_by_id(thread_id)
         if not thread or thread.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Thread not found")
@@ -135,42 +142,145 @@ async def gmail_webhook(
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        data = await request.json()
+        # Получаем данные запроса от Pub/Sub
+        pubsub_message = await request.json()
         
-        # Извлекаем данные из уведомления Gmail
-        if 'message' not in data:
-            return {"status": "skipped", "reason": "Not a message notification"}
-            
-        # Получаем thread_id из топика
-        topic_name = data.get('subscription', '').split('/')[-1]
-        thread_id = topic_name.replace('gmail-', '')
+        # Проверяем наличие поля 'message' в запросе
+        if 'message' not in pubsub_message:
+            # Возвращаем успешный ответ для подтверждения получения
+            return {"status": "acknowledged"}
         
-        # Инициализируем сервисы
-        gmail_service = GmailService(db)
-        email_service = EmailService(db)
+        # Декодируем данные сообщения
+        message_data = pubsub_message['message']['data']
+        decoded_data = base64.b64decode(message_data).decode('utf-8')
         
-        # Получаем тред
-        thread = await email_service.thread_repo.get_thread_by_id(thread_id)
-        if not thread:
-            return {"status": "error", "detail": "Thread not found"}
-            
-        # Получаем пользователя через тред
-        user = await email_service.user_repo.get_user_by_id(thread.user_id)
-        if not user:
-            return {"status": "error", "detail": "User not found"}
-            
-        # Обрабатываем входящее письмо
-        await gmail_service.process_incoming_email(
-            email_data=data,
-            email_thread=thread,
-            user=user
+        # Преобразуем данные в JSON
+        email_data = json.loads(decoded_data)
+        email_address = email_data.get('emailAddress')
+        history_id = email_data['historyId']
+
+        # print(f"Email address: {email_address}")
+        # print(f"History ID: {history_id}")
+        
+        oauth_service = OAuthService(db)
+        
+        # Получаем учетные данные OAuth
+        oauth_creds = await oauth_service.get_oauth_credentials_by_email_and_provider(email_address, 'google')
+        creds = Credentials.from_authorized_user_info(
+            info={
+                "token": oauth_creds.access_token,
+                "refresh_token": oauth_creds.refresh_token,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+            }
         )
+        service = build('gmail', 'v1', credentials=creds)
+        
+        # Получаем историю изменений начиная с полученного historyId
+        try:
+            # Используем historyId немного меньше текущего
+            start_history_id = str(int(history_id) - 100)  # Отступаем на 100 назад
+            
+            # print(f"Запрашиваем историю начиная с ID: {start_history_id}")
+            
+            history_list = service.users().history().list(
+                userId='me',
+                startHistoryId=start_history_id,
+                # historyTypes=['messageAdded']  # Интересуют только новые сообщения
+                maxResults=10
+            ).execute()
+            
+            # print(f"Полученный ответ history_list: {history_list}")
+            
+            if 'history' not in history_list:
+                print("В ответе нет ключа 'history' - нет новых изменений")
+                return {"status": "success", "message": "No new changes"}
+            
+            changes = history_list['history']
+            # print(f"Найдено {len(changes)} изменений")
+            
+            # Создадим множество для хранения обработанных message_id
+            processed_messages = set()
+            
+            for history in changes:
+                if 'messagesAdded' in history:
+                    for message_added in history['messagesAdded']:
+                        message = message_added['message']
+                        message_id = message['id']
+                        
+                        # Пропускаем, если сообщение уже было обработано
+                        if message_id in processed_messages:
+                            print(f"Сообщение {message_id} уже было обработано")
+                            continue
+                            
+                        # Получаем метки сообщения
+                        labels = message.get('labelIds', [])
+                        
+                        # Пропускаем черновики и отправленные сообщения
+                        if 'DRAFT' in labels or 'SENT' in labels:
+                            print(f"Пропускаем сообщение с метками {labels}")
+                            continue
+                            
+                        # Обрабатываем только входящие сообщения
+                        if 'INBOX' in labels:
+                            try:
+                                print(f"Обрабатываем входящее сообщение ID: {message_id}")
+                                # Получаем полное сообщение
+                                full_message = service.users().messages().get(
+                                    userId='me',
+                                    id=message_id,
+                                    format='full'
+                                ).execute()
+                                
+                                # Получаем заголовки
+                                headers = {header['name']: header['value'] 
+                                         for header in full_message['payload']['headers']}
+                                
+                                print(f"Тема: {headers.get('Subject')}")
+                                print(f"От: {headers.get('From')}")
+                                print(f"Кому: {headers.get('To')}")
+                                print(f"Дата: {headers.get('Date')}")
+                                
+                                # Получаем тело сообщения
+                                if 'parts' in full_message['payload']:
+                                    # Многочастное сообщение
+                                    parts = full_message['payload']['parts']
+                                    for part in parts:
+                                        if part['mimeType'] == 'text/plain':
+                                            body = base64.urlsafe_b64decode(
+                                                part['body']['data']
+                                            ).decode('utf-8')
+                                            # Получаем только первую строку до первого пустого перевода строки
+                                            first_message = body.split('\n\n')[0]
+                                            print(f"Содержание сообщения: {first_message}")
+                                else:
+                                    # Простое текстовое сообщение
+                                    if 'data' in full_message['payload']['body']:
+                                        body = base64.urlsafe_b64decode(
+                                            full_message['payload']['body']['data']
+                                        ).decode('utf-8')
+                                        # Получаем только первую строку до первого пустого перевода строки
+                                        first_message = body.split('\n\n')[0]
+                                        print(f"Содержание сообщения: {first_message}")
+                                        
+                                # Добавляем message_id в множество обработанных
+                                processed_messages.add(message_id)
+                                
+                            except Exception as e:
+                                print(f"Ошибка при обработке сообщения {message_id}: {str(e)}")
+                                continue
+                        else:
+                            print(f"Пропускаем не входящее сообщение с метками {labels}")
+        
+        except Exception as e:
+            print(f"Ошибка при получении истории: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
         
         return {"status": "success"}
         
     except Exception as e:
-        print(f"Error processing Gmail webhook: {str(e)}")
+        print(f"Ошибка при обработке уведомления от Pub/Sub: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process Gmail notification: {str(e)}"
+            status_code=500,
+            detail=f"Не удалось обработать уведомление: {str(e)}"
         )

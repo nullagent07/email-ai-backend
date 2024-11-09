@@ -103,6 +103,8 @@ class GmailService:
                 format='full'
             ).execute()
             
+            print(message)
+
             # Извлекаем содержимое
             email_content = self._extract_email_content(message)
             
