@@ -16,6 +16,7 @@ from googleapiclient.discovery import build
 from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
 from app.core.config import settings
 from app.services.oauth_service import OAuthService
+import email.utils
 
 router = APIRouter(prefix="/email", tags=["email"])
 
@@ -116,7 +117,7 @@ async def get_messages_in_thread(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# Эндпоинт для получения отдельного сообщения по его ID
+# Эндпоинт для получения отдельног сообщения по его ID
 @router.get("/messages/{message_id}", response_model=EmailMessageResponse)
 async def get_message_by_id(
     message_id: int,
@@ -199,8 +200,8 @@ async def gmail_webhook(
             changes = history_list['history']
             # print(f"Найдено {len(changes)} изменений")
             
-            # Создадим множество для хранения обработанных message_id
-            processed_messages = set()
+            # Создадим список для хранения сообщений
+            processed_messages = []
             
             for history in changes:
                 if 'messagesAdded' in history:
@@ -208,11 +209,6 @@ async def gmail_webhook(
                         message = message_added['message']
                         message_id = message['id']
                         
-                        # Пропускаем, если сообщение уже было обработано
-                        if message_id in processed_messages:
-                            print(f"Сообщение {message_id} уже было обработано")
-                            continue
-                            
                         # Получаем метки сообщения
                         labels = message.get('labelIds', [])
                         
@@ -224,7 +220,6 @@ async def gmail_webhook(
                         # Обрабатываем только входящие сообщения
                         if 'INBOX' in labels:
                             try:
-                                print(f"Обрабатываем входящее сообщение ID: {message_id}")
                                 # Получаем полное сообщение
                                 full_message = service.users().messages().get(
                                     userId='me',
@@ -236,41 +231,52 @@ async def gmail_webhook(
                                 headers = {header['name']: header['value'] 
                                          for header in full_message['payload']['headers']}
                                 
-                                print(f"Тема: {headers.get('Subject')}")
-                                print(f"От: {headers.get('From')}")
-                                print(f"Кому: {headers.get('To')}")
-                                print(f"Дата: {headers.get('Date')}")
+                                # Получаем время сообщения в формате timestamp
+                                date_str = headers.get('Date')
+                                date_obj = email.utils.parsedate_to_datetime(date_str)
+                                timestamp = date_obj.timestamp()
+                                
+                                message_content = {
+                                    'id': message_id,
+                                    'timestamp': timestamp,
+                                    'subject': headers.get('Subject'),
+                                    'from': headers.get('From'),
+                                    'to': headers.get('To'),
+                                    'date': headers.get('Date'),
+                                    'body': ''
+                                }
                                 
                                 # Получаем тело сообщения
                                 if 'parts' in full_message['payload']:
-                                    # Многочастное сообщение
-                                    parts = full_message['payload']['parts']
-                                    for part in parts:
+                                    for part in full_message['payload']['parts']:
                                         if part['mimeType'] == 'text/plain':
                                             body = base64.urlsafe_b64decode(
                                                 part['body']['data']
                                             ).decode('utf-8')
-                                            # Получаем только первую строку до первого пустого перевода строки
-                                            first_message = body.split('\n\n')[0]
-                                            print(f"Содержание сообщения: {first_message}")
+                                            message_content['body'] = body.split('\n')[0]
+                                            break
                                 else:
-                                    # Простое текстовое сообщение
                                     if 'data' in full_message['payload']['body']:
                                         body = base64.urlsafe_b64decode(
                                             full_message['payload']['body']['data']
                                         ).decode('utf-8')
-                                        # Получаем только первую строку до первого пустого перевода строки
-                                        first_message = body.split('\n\n')[0]
-                                        print(f"Содержание сообщения: {first_message}")
-                                        
-                                # Добавляем message_id в множество обработанных
-                                processed_messages.add(message_id)
+                                        message_content['body'] = body.split('\n')[0]
+                                
+                                processed_messages.append(message_content)
                                 
                             except Exception as e:
                                 print(f"Ошибка при обработке сообщения {message_id}: {str(e)}")
                                 continue
-                        else:
-                            print(f"Пропускаем не входящее сообщение с метками {labels}")
+            
+            # Выводим только самое последнее сообщение
+            if processed_messages:
+                latest_message = max(processed_messages, key=lambda x: x['timestamp'])
+                print(f"Обрабатываем входящее сообщение ID: {latest_message['id']}")
+                print(f"Тема: {latest_message['subject']}")
+                print(f"От: {latest_message['from']}")
+                print(f"Кому: {latest_message['to']}")
+                print(f"Дата: {latest_message['date']}")
+                print(f"Содержание сообщения: {latest_message['body']}")
         
         except Exception as e:
             print(f"Ошибка при получении истории: {str(e)}")
