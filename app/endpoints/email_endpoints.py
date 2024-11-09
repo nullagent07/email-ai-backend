@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.services.email_service import EmailService
+from app.services.gmail_service import GmailService
 from app.schemas.email_message_schema import EmailMessageCreate, EmailMessageResponse
 from app.schemas.email_thread_schema import EmailThreadCreate, EmailThreadResponse, ThreadStatus
 from app.core.dependency import get_db, get_current_user
@@ -18,11 +19,11 @@ async def create_thread(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    email_service = EmailService(db)
+    gmail_service = GmailService(db)
     try:
         # Устанавливаем текущего пользователя как владельца потока
         thread_data.user_id = current_user.id
-        thread = await email_service.create_gmail_thread(thread_data)
+        thread = await gmail_service.create_gmail_thread(thread_data)
         return thread
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

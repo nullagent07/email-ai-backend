@@ -88,14 +88,14 @@ class OpenAIService:
         # Создаем новый тред
         thread = await self.client.beta.threads.create()
         
-        # Запускаем ссистента для генерации приветственного сообщения
+        # Запускаем ссисте��та для генерации приветственного сообщения
         run = await self.client.beta.threads.runs.create(
             thread_id=thread.id,
             assistant_id=self._assistant_id,
             instructions=thread_description
         )
         
-        # Ожидаем завершения генераци�� ответа
+        # Ожидаем завершения генераци ответа
         while True:
             run_status = await self.client.beta.threads.runs.retrieve(
                 thread_id=thread.id,
@@ -185,7 +185,6 @@ class OpenAIService:
         Запускает тред с ассистентом и ждет ответа
         """
         try:
-            # Инициализируем клиент с увеличенным таймаутом
             client = self.client.with_options(
                 timeout=httpx.Timeout(
                     timeout,
@@ -193,7 +192,7 @@ class OpenAIService:
                     read=timeout,
                     write=10.0
                 ),
-                max_retries=3  # Увеличиваем количество попыток
+                max_retries=3
             )
 
             # Проверяем существование треда и ассистента
@@ -201,7 +200,6 @@ class OpenAIService:
             assistant = await client.beta.assistants.retrieve(assistant_id)
             print(f"Thread and assistant verified: {thread.id}, {assistant.id}")
 
-            # Добавляем инструкции как сообщение
             if instructions:
                 await client.beta.threads.messages.create(
                     thread_id=thread_id,
@@ -209,16 +207,14 @@ class OpenAIService:
                     content=instructions
                 )
 
-            # Запускаем ассистента
             run = await client.beta.threads.runs.create(
                 thread_id=thread_id,
                 assistant_id=assistant_id
             )
             print(f"Run created: {run.id}")
 
-            # Ждем завершения с периодической проверкой
             start_time = datetime.now()
-            queue_timeout = 30.0  # Таймаут для статуса queued
+            queue_timeout = 30.0
             queue_start = None
 
             while (datetime.now() - start_time).total_seconds() < timeout:
@@ -243,10 +239,13 @@ class OpenAIService:
                         queue_start = datetime.now()
                     elif (datetime.now() - queue_start).total_seconds() > queue_timeout:
                         print("Queue timeout exceeded")
-                        await client.beta.threads.runs.cancel(
-                            thread_id=thread_id,
-                            run_id=run.id
-                        )
+                        try:
+                            await client.beta.threads.runs.cancel(
+                                thread_id=thread_id,
+                                run_id=run.id
+                            )
+                        except Exception as cancel_error:
+                            print(f"Error cancelling run: {str(cancel_error)}")
                         return None
 
                 elif run_status.status in ['failed', 'cancelled', 'expired']:
@@ -255,13 +254,17 @@ class OpenAIService:
                         print(f"Error details: {run_status.last_error}")
                     return None
 
-                await asyncio.sleep(2)  # Увеличиваем интервал проверки
+                await asyncio.sleep(2)
 
             # Если превышен основной таймаут
-            await client.beta.threads.runs.cancel(
-                thread_id=thread_id,
-                run_id=run.id
-            )
+            if run_status.status not in ['completed', 'failed', 'cancelled', 'expired']:
+                try:
+                    await client.beta.threads.runs.cancel(
+                        thread_id=thread_id,
+                        run_id=run.id
+                    )
+                except Exception as cancel_error:
+                    print(f"Error cancelling run: {str(cancel_error)}")
             return None
 
         except Exception as e:
