@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Dict
 from datetime import datetime
 import asyncio
 from app.models.assistant import AssistantProfile
+import httpx
 
 settings = get_app_settings()
 
@@ -53,7 +54,7 @@ class OpenAIService:
             }
         except Exception:
             return None
-        
+          
     async def create_thread_with_initial_message(self, user_name: str, thread_description: str) -> Tuple[str, str]:
         """Создает новый тред с начальным сообщением от ассистента"""
         # Создаем новый тред
@@ -64,24 +65,37 @@ class OpenAIService:
         await self.client.beta.threads.messages.create(
             thread_id=thread.id,
             role="user",
-            content=initial_message
+            content=thread_description
         )
         
         return thread.id, initial_message
+
+    async def create_thread(self) -> str:
+        """
+        Создает новый пустой тред в OpenAI
         
+        Returns:
+            str: ID созданного треда
+        """
+        try:
+            thread = await self.client.beta.threads.create()
+            return thread.id
+        except Exception as e:
+            raise ValueError(f"Failed to create thread: {str(e)}")
+
     async def create_thread_with_welcome_message(self, thread_description: str) -> Tuple[str, Optional[str]]:
         """Создает новый тред и инициирует генерацию приветственного сообщения от ассистента"""
         # Создаем новый тред
         thread = await self.client.beta.threads.create()
         
-        # Запускаем ассистента для генерации приветственного сообщения
+        # Запускаем ссистента для генерации приветственного сообщения
         run = await self.client.beta.threads.runs.create(
             thread_id=thread.id,
             assistant_id=self._assistant_id,
             instructions=thread_description
         )
         
-        # Ожидаем завершения генерации ответа
+        # Ожидаем завершения генераци�� ответа
         while True:
             run_status = await self.client.beta.threads.runs.retrieve(
                 thread_id=thread.id,
@@ -102,14 +116,36 @@ class OpenAIService:
             
         return thread.id, messages.data[0].content[0].text.value
         
-    async def add_message_to_thread(self, thread_id: str, content: str, role: str = "user") -> str:
-        """Добавляет сообщение в тред"""
-        message = await self.client.beta.threads.messages.create(
-            thread_id=thread_id,
-            role=role,
-            content=content
-        )
-        return message.id
+    async def add_message_to_thread(
+        self, 
+        thread_id: str, 
+        content: str, 
+        role: str = "user",
+        timeout: float = 30.0
+    ) -> Optional[str]:
+        """
+        Добавляе сообщение в тред OpenAI
+        
+        Args:
+            thread_id: ID треда
+            content: Текст сообщения
+            role: Роль отправителя (user/assistant)
+            timeout: Таймаут запроса в секундах
+            
+        Returns:
+            Optional[str]: ID созданного сообщения или None в случае ошибки
+        """
+        try:
+            message = await self.client.with_options(timeout=timeout).beta.threads.messages.create(
+                thread_id=thread_id,
+                role=role,
+                content=content
+            )
+            return message.id
+        except Exception as e:
+            # Логируем ошибку
+            print(f"Failed to add message to thread {thread_id}: {str(e)}")
+            return None
         
     async def run_assistant(self, thread_id: str, assistant_id: str) -> str:
         """Запускает ассистента для обработки сообщений в треде"""
@@ -137,3 +173,97 @@ class OpenAIService:
             return None
             
         return messages.data[0].content[0].text.value
+
+    async def run_thread(
+        self, 
+        thread_id: str, 
+        assistant_id: str,
+        instructions: Optional[str] = None,
+        timeout: float = 180.0
+    ) -> Optional[str]:
+        """
+        Запускает тред с ассистентом и ждет ответа
+        """
+        try:
+            # Инициализируем клиент с увеличенным таймаутом
+            client = self.client.with_options(
+                timeout=httpx.Timeout(
+                    timeout,
+                    connect=10.0,
+                    read=timeout,
+                    write=10.0
+                ),
+                max_retries=3  # Увеличиваем количество попыток
+            )
+
+            # Проверяем существование треда и ассистента
+            thread = await client.beta.threads.retrieve(thread_id)
+            assistant = await client.beta.assistants.retrieve(assistant_id)
+            print(f"Thread and assistant verified: {thread.id}, {assistant.id}")
+
+            # Добавляем инструкции как сообщение
+            if instructions:
+                await client.beta.threads.messages.create(
+                    thread_id=thread_id,
+                    role="user",
+                    content=instructions
+                )
+
+            # Запускаем ассистента
+            run = await client.beta.threads.runs.create(
+                thread_id=thread_id,
+                assistant_id=assistant_id
+            )
+            print(f"Run created: {run.id}")
+
+            # Ждем завершения с периодической проверкой
+            start_time = datetime.now()
+            queue_timeout = 30.0  # Таймаут для статуса queued
+            queue_start = None
+
+            while (datetime.now() - start_time).total_seconds() < timeout:
+                run_status = await client.beta.threads.runs.retrieve(
+                    thread_id=thread_id,
+                    run_id=run.id
+                )
+                print(f"Run status: {run_status.status}")
+
+                if run_status.status == 'completed':
+                    messages = await client.beta.threads.messages.list(
+                        thread_id=thread_id,
+                        order='desc',
+                        limit=1
+                    )
+                    if messages.data:
+                        return messages.data[0].content[0].text.value
+                    return None
+
+                elif run_status.status == 'queued':
+                    if queue_start is None:
+                        queue_start = datetime.now()
+                    elif (datetime.now() - queue_start).total_seconds() > queue_timeout:
+                        print("Queue timeout exceeded")
+                        await client.beta.threads.runs.cancel(
+                            thread_id=thread_id,
+                            run_id=run.id
+                        )
+                        return None
+
+                elif run_status.status in ['failed', 'cancelled', 'expired']:
+                    print(f"Run failed with status: {run_status.status}")
+                    if hasattr(run_status, 'last_error'):
+                        print(f"Error details: {run_status.last_error}")
+                    return None
+
+                await asyncio.sleep(2)  # Увеличиваем интервал проверки
+
+            # Если превышен основной таймаут
+            await client.beta.threads.runs.cancel(
+                thread_id=thread_id,
+                run_id=run.id
+            )
+            return None
+
+        except Exception as e:
+            print(f"Error in run_thread: {str(e)}")
+            return None

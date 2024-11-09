@@ -56,11 +56,14 @@ class EmailService:
             {thread_data.assistant}
             """
         )
-        
-        # 3. Создаем тред с начальным контекстом
-        openai_thread_id, _ = await self.openai_service.create_thread_with_initial_message(
-            user_name=thread_data.recipient_name,
-            thread_description=f"""Это начало email переписки с {thread_data.recipient_name}.
+
+        # 3. Создаем тред в OpenAI
+        openai_thread_id = await self.openai_service.create_thread()
+
+        # 4. Добавляем начальное сообщение в тред
+        await self.openai_service.add_message_to_thread(
+            thread_id=openai_thread_id,
+            content=f"""Это начало email переписки с {thread_data.recipient_name}.
             
             Напиши первое приветственное письмо, учитывая следующий контекст:
             {thread_data.assistant}
@@ -72,25 +75,45 @@ class EmailService:
             4. Закончиться вежливой подписью
             """
         )
-        
-        # 4. Запускаем ассистента для генерации ответа
-        run_id = await self.openai_service.run_assistant(
-            thread_id=openai_thread_id,
-            assistant_id=assistant_id
-        )
-        
-        # 5. Получаем сгенерированный ответ
-        initial_message = await self.openai_service.get_response(
-            thread_id=openai_thread_id,
-            run_id=run_id
-        )
-        
-        if not initial_message:
+
+        # Проверяем существование ассистента
+        assistant = await self.openai_service.get_assistant(assistant_id)
+        if not assistant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assistant not found"
+            )
+
+        # 4. Запускаем ассистента и получаем ответ с обработкой ошибок
+        try:
+            initial_message = await self.openai_service.run_thread(
+                thread_id=openai_thread_id,
+                assistant_id=assistant_id,
+                instructions="""
+                Сгенерируй приветственное письмо, учитывая:
+                1. Имя получателя
+                2. Контекст переписки
+                3. Деловой стиль
+                """,
+                timeout=15.0  # таймаут
+            )
+            
+            if initial_message is None:
+                # Очищаем ресурсы при ошибке
+                await self.openai_service.delete_assistant(assistant_id)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to generate initial message"
+                )
+                
+        except Exception as e:
+            # Очищаем ресурсы при ошибке
+            await self.openai_service.delete_assistant(assistant_id)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to generate initial message"
+                detail=f"Error running thread: {str(e)}"
             )
-        
+
         # 6. Отправляем email через Gmail API
         message = {
             'raw': base64.urlsafe_b64encode(
@@ -130,8 +153,8 @@ Content-Type: text/html; charset=utf-8\r\n\
         assistant_profile = AssistantProfile(
             id=assistant_id,
             user_id=thread_data.user_id,
-            name=thread_data.name,
-            description=thread_data.assistant_description
+            name=thread_data.recipient_name,
+            description=thread_data.assistant
         )
         await self.assistant_repo.create_assistant_profile(assistant_profile)
         
@@ -139,8 +162,8 @@ Content-Type: text/html; charset=utf-8\r\n\
         new_thread = EmailThread(
             id=openai_thread_id,
             user_id=thread_data.user_id,
-            thread_name=thread_data.email,
-            description=thread_data.assistant_description,
+            thread_name=thread_data.recipient_name,
+            description=thread_data.assistant,
             status=ThreadStatus.ACTIVE,
             assistant_id=assistant_id
         )
