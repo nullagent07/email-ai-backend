@@ -16,6 +16,7 @@ from app.schemas.email_thread_schema import EmailThreadCreate
 from app.models.email_message import EmailMessage, MessageType
 from app.repositories.email_message_repository import EmailMessageRepository
 from uuid import UUID
+import email.utils
 
 settings = get_app_settings()
 
@@ -354,3 +355,103 @@ Content-Type: text/html; charset=utf-8\r\n\
         thread = await self.thread_repo.create_thread(new_thread)
         
         return thread
+
+    async def process_webhook_messages(self, history_list: dict, service) -> dict:
+        """Обрабатывает входящие сообщения из webhook"""
+        try:
+            if 'history' not in history_list:
+                print("В ответе нет ключа 'history' - нет новых изменений")
+                return {"status": "success", "message": "No new changes"}
+            
+            changes = history_list['history']
+            processed_messages = []
+            
+            for history in changes:
+                if 'messagesAdded' in history:
+                    for message_added in history['messagesAdded']:
+                        message = message_added['message']
+                        message_id = message['id']
+                        
+                        # Получаем метки сообщения
+                        labels = message.get('labelIds', [])
+                        
+                        # Пропускаем черновики и отправленные сообщения
+                        if 'DRAFT' in labels or 'SENT' in labels:
+                            print(f"Пропускаем сообщение с метками {labels}")
+                            continue
+                            
+                        # Обрабатываем только входящие сообщения
+                        if 'INBOX' in labels:
+                            try:
+                                # Получаем полное сообщение
+                                full_message = service.users().messages().get(
+                                    userId='me',
+                                    id=message_id,
+                                    format='full'
+                                ).execute()
+                                
+                                message_content = self._extract_message_content(full_message, message_id)
+                                processed_messages.append(message_content)
+                                
+                            except Exception as e:
+                                print(f"Ошибка при обработке сообщения {message_id}: {str(e)}")
+                                continue
+            
+            # Выводим только самое последнее сообщение
+            if processed_messages:
+                latest_message = max(processed_messages, key=lambda x: x['timestamp'])
+                self._print_message_info(latest_message)
+                return {"status": "success", "message": latest_message}
+            
+            return {"status": "success", "message": "No new messages"}
+            
+        except Exception as e:
+            print(f"Ошибка при обработке сообщений: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+
+    def _extract_message_content(self, full_message: dict, message_id: str) -> dict:
+        """Извлекает содержимое сообщения"""
+        headers = {header['name']: header['value'] 
+                  for header in full_message['payload']['headers']}
+        
+        # Получаем время сообщения в формате timestamp
+        date_str = headers.get('Date')
+        date_obj = email.utils.parsedate_to_datetime(date_str)
+        timestamp = date_obj.timestamp()
+        
+        message_content = {
+            'id': message_id,
+            'timestamp': timestamp,
+            'subject': headers.get('Subject'),
+            'from': headers.get('From'),
+            'to': headers.get('To'),
+            'date': headers.get('Date'),
+            'body': ''
+        }
+        
+        # Получаем тело сообщения
+        if 'parts' in full_message['payload']:
+            for part in full_message['payload']['parts']:
+                if part['mimeType'] == 'text/plain':
+                    body = base64.urlsafe_b64decode(
+                        part['body']['data']
+                    ).decode('utf-8')
+                    message_content['body'] = body.split('\n')[0]
+                    break
+        else:
+            if 'data' in full_message['payload']['body']:
+                body = base64.urlsafe_b64decode(
+                    full_message['payload']['body']['data']
+                ).decode('utf-8')
+                message_content['body'] = body.split('\n')[0]
+        
+        return message_content
+
+    def _print_message_info(self, message: dict):
+        """Выводит информацию о сообщении"""
+        print(f"Обрабатываем входящее сообщение ID: {message['id']}")
+        print(f"Тема: {message['subject']}")
+        print(f"От: {message['from']}")
+        print(f"Кому: {message['to']}")
+        print(f"Дата: {message['date']}")
+        print(f"Содержание сообщения: {message['body']}")
