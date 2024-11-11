@@ -20,5 +20,9 @@ class EmailThread(Base):
     status = Column(Enum(ThreadStatus), default=ThreadStatus.ACTIVE, nullable=False)
     assistant_id = Column(String, ForeignKey('assistant_profiles.id'))
     
+    # Добавляем новые поля
+    recipient_email = Column(String, nullable=False)  # Email получателя
+    recipient_name = Column(String, nullable=False)   # Имя получателя
+    
     # Каждый тред принадлежит одному ассистенту
     assistant = relationship("AssistantProfile", back_populates="threads")

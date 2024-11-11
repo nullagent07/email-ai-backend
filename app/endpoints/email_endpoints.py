@@ -159,11 +159,19 @@ async def gmail_webhook(
         email_address = email_data.get('emailAddress')
         history_id = email_data['historyId']
         
+        print(f"Email address: {email_address}, History ID: {history_id}")
+
         oauth_service = OAuthService(db)
         gmail_service = GmailService(db)
         
         # Получаем учетные данные OAuth
-        oauth_creds = await oauth_service.get_oauth_credentials_by_email_and_provider(email_address, 'google')
+        oauth_creds = await oauth_service.get_oauth_credentials_by_email_and_provider(email=email_address, provider='google')
+        
+        # Проверяем наличие учетных данных
+        if not oauth_creds:
+            print(f"OAuth credentials not found for email: {email_address}")
+            return {"status": "success", "message": "No credentials found"}
+        
         creds = Credentials.from_authorized_user_info(
             info={
                 "token": oauth_creds.access_token,
@@ -184,9 +192,12 @@ async def gmail_webhook(
                 maxResults=10
             ).execute()
             
-            return await gmail_service.process_webhook_messages(history_list, service)
+            return await gmail_service.process_webhook_gmail_messages(history_list, service)
             
         except Exception as e:
+            if 'notFound' in str(e):
+                # Если сообщение не найдено, возвращаем успешный статус
+                return {"status": "success", "message": "Message not found"}
             print(f"Ошибка при получении истории: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
         

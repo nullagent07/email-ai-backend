@@ -29,6 +29,7 @@ class GmailService:
         self.assistant_repo = AssistantRepository(db)
         self.openai_service = OpenAIService()
         self.message_repo = EmailMessageRepository(db)
+        self.processed_messages = set()
         
     async def setup_email_monitoring(self, user_id: UUID):
         """Настраивает отслеживание писем для активного треда"""
@@ -234,7 +235,7 @@ class GmailService:
             [Подпись]
             </div>
             
-            Дополнительный контекст:
+            Дополнительный контект:
             {thread_data.assistant}
             """
         )
@@ -350,69 +351,113 @@ Content-Type: text/html; charset=utf-8\r\n\
             thread_name=thread_data.recipient_name,
             description=thread_data.assistant,
             status=ThreadStatus.ACTIVE,
-            assistant_id=assistant_id
+            assistant_id=assistant_id,
+            recipient_email=thread_data.recipient_email,
+            recipient_name=thread_data.recipient_name
         )
         thread = await self.thread_repo.create_thread(new_thread)
         
         return thread
 
-    async def process_webhook_messages(self, history_list: dict, service) -> dict:
-        """Обрабатывает входящие сообщения из webhook"""
-        try:
-            if 'history' not in history_list:
-                print("В ответе нет ключа 'history' - нет новых изменений")
-                return {"status": "success", "message": "No new changes"}
-            
-            changes = history_list['history']
-            processed_messages = []
-            
-            for history in changes:
-                if 'messagesAdded' in history:
-                    for message_added in history['messagesAdded']:
-                        message = message_added['message']
-                        message_id = message['id']
-                        
-                        # Получаем метки сообщения
-                        labels = message.get('labelIds', [])
-                        
-                        # Пропускаем черновики и отправленные сообщения
-                        if 'DRAFT' in labels or 'SENT' in labels:
-                            print(f"Пропускаем сообщение с метками {labels}")
-                            continue
-                            
-                        # Обрабатываем только входящие сообщения
-                        if 'INBOX' in labels:
-                            try:
-                                # Получаем полное сообщение
-                                full_message = service.users().messages().get(
-                                    userId='me',
-                                    id=message_id,
-                                    format='full'
-                                ).execute()
-                                
-                                message_content = self._extract_message_content(full_message, message_id)
-                                processed_messages.append(message_content)
-                                
-                            except Exception as e:
-                                print(f"Ошибка при обработке сообщения {message_id}: {str(e)}")
-                                continue
-            
-            # Выводим только самое последнее сообщение
-            if processed_messages:
-                latest_message = max(processed_messages, key=lambda x: x['timestamp'])
-                self._print_message_info(latest_message)
-                return {"status": "success", "message": latest_message}
-            
+    async def process_webhook_gmail_messages(self, history_list: dict, service) -> dict:
+        if not history_list.get('history', []):
             return {"status": "success", "message": "No new messages"}
+        
+        processed_messages = []
+        
             
-        except Exception as e:
-            print(f"Ошибка при обработке сообщений: {str(e)}")
-            raise HTTPException(status_code=400, detail=str(e))
+        for history in history_list['history']:
+            for message_added in history.get('messagesAdded', []):
+                message = message_added['message']
+                message_id = message['id']
 
-    def _extract_message_content(self, full_message: dict, message_id: str) -> dict:
-        """Извлекает содержимое сообщения"""
+                # Пропускаем уже обработанные сообщения
+                if message_id in self.processed_messages:
+                    print(f"Пропускаем дублирующееся сообщение: {message_id}")
+                    continue
+                
+                try:
+                    # Получаем полное сообщение
+                    full_message = service.users().messages().get(
+                        userId='me', 
+                        id=message_id
+                    ).execute()
+                    # Получаем метки сообщения
+                    label_ids = full_message.get('labelIds', [])
+
+                    # Пропускаем черновики и отправленные сообщения
+                    if 'DRAFT' in label_ids or 'SENT' in label_ids:
+                        print(f"Пропускаем сообщение с метками {label_ids}")
+                        return {"status": "success", "message": "Messages processed"}
+                            
+                    # Обрабатываем только входящие сообщения
+                    if 'INBOX' in label_ids:
+                        try:
+                            # Получаем полное сообщение
+                            full_message = service.users().messages().get(
+                                userId='me',
+                                id=message_id,
+                                format='full'
+                            ).execute()
+
+                            message_content = await self._extract_message_content(full_message, message_id)
+
+                            if message_content:
+                                processed_messages.append(message_content)
+                                # Добавляем ID в множество обработанных
+                                self.processed_messages.add(message_id)
+                            
+                        except Exception as e:
+                            print(f"Ошибка при обработке сообщения {message_id}: {str(e)}")
+                            continue     
+
+                except Exception as e:
+                    if 'notFound' in str(e):
+                        print(f"Message {message_id} not found, skipping: {str(e)}")
+                        return {"status": "success", "message": f"Message {message_id} not found"}
+                    else:
+                        raise e
+
+        if processed_messages:
+            latest_message = max(processed_messages, key=lambda x: x['timestamp'])
+            self._print_message_info(latest_message)
+            return {"status": "success", "message": latest_message}
+            
+        # except Exception as e:
+        #     print(f"Ошибка при обработке сообщений: {str(e)}")
+        #     raise HTTPException(status_code=400, detail=str(e))    
+        return {"status": "success", "message": "Messages processed"}
+
+    def _extract_email_from_header(self, header_value: str) -> str:
+        """Извлекает email адрес из заголовка письма
+        
+        Примеры входных данных:
+        - "Имя <email@domain.com>" -> "email@domain.com"
+        - "email@domain.com" -> "email@domain.com"
+        """
+        if '<' in header_value and '>' in header_value:
+            return header_value[header_value.find('<')+1:header_value.find('>')]
+        return header_value.strip()
+
+    async def _extract_message_content(self, full_message: dict, message_id: str) -> dict:
+        """Извлекает содержимое сообщения и проверяет существование треда"""
+        
         headers = {header['name']: header['value'] 
                   for header in full_message['payload']['headers']}
+        
+        # Получаем чистые email адреса отправителя и получателя
+        sender_email = self._extract_email_from_header(headers.get('From', ''))
+        recipient_email = self._extract_email_from_header(headers.get('To', ''))
+        
+        # Проверяем существование активного треда с чистыми email адресами
+        existing_thread = await self.thread_repo.find_active_thread(
+            sender_email=sender_email,
+            recipient_email=recipient_email
+        )
+        
+        # Если тред не найден, прекращаем обработку
+        if not existing_thread:
+            return {"status": "success", "message": "No active thread found"}
         
         # Получаем время сообщения в формате timestamp
         date_str = headers.get('Date')
@@ -423,10 +468,11 @@ Content-Type: text/html; charset=utf-8\r\n\
             'id': message_id,
             'timestamp': timestamp,
             'subject': headers.get('Subject'),
-            'from': headers.get('From'),
-            'to': headers.get('To'),
+            'from': sender_email,
+            'to': recipient_email,
             'date': headers.get('Date'),
-            'body': ''
+            'body': '',
+            'thread_id': existing_thread.id  # Добавляем ID найденного треда
         }
         
         # Получаем тело сообщения
@@ -449,6 +495,7 @@ Content-Type: text/html; charset=utf-8\r\n\
 
     def _print_message_info(self, message: dict):
         """Выводит информацию о сообщении"""
+        print(f"thread_id: {message['thread_id']}")
         print(f"Обрабатываем входящее сообщение ID: {message['id']}")
         print(f"Тема: {message['subject']}")
         print(f"От: {message['from']}")

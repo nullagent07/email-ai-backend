@@ -73,4 +73,11 @@ class EmailService:
     async def get_message_by_id(self, message_id: int) -> Optional[EmailMessage]:
         return await self.message_repo.get_message_by_id(message_id)
 
+    async def create_message(self, message: EmailMessage) -> EmailMessage:
+        """Создает новое сообщение в базе данных"""
+        self.db.add(message)
+        await self.db.commit()
+        await self.db.refresh(message)
+        return message
+
     # Добавьте дополнительные асинхронные методы по необходимости
