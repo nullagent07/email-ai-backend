@@ -380,6 +380,8 @@ Content-Type: text/html; charset=utf-8\r\n\
                     message_content = await self.process_message(service, message_id, label_ids)
                     if message_content:
                         processed_messages.append(message_content)
+                    else:
+                        return {"status": "success", "message": "Message processed"}
 
                 except Exception as e:
                     if 'notFound' in str(e):
@@ -421,7 +423,7 @@ Content-Type: text/html; charset=utf-8\r\n\
             sender_email=sender_email,
             recipient_email=recipient_email
         )
-        
+
         # Если тред не найден, прекращаем обработку
         if existing_thread is None:
             print(f"Тред не найден")
