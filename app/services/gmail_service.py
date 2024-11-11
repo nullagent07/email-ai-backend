@@ -104,8 +104,6 @@ class GmailService:
                 id=email_data['message']['id'],
                 format='full'
             ).execute()
-            
-            print(message)
 
             # Извлекаем содержимое
             email_content = self._extract_email_content(message)
@@ -365,51 +363,23 @@ Content-Type: text/html; charset=utf-8\r\n\
         
         processed_messages = []
         
-            
         for history in history_list['history']:
             for message_added in history.get('messagesAdded', []):
                 message = message_added['message']
                 message_id = message['id']
-
-                # Пропускаем уже обработанные сообщения
-                if message_id in self.processed_messages:
-                    print(f"Пропускаем дублирующееся сообщение: {message_id}")
-                    continue
                 
                 try:
-                    # Получаем полное сообщение
+                    # Получаем полное сообщение для меток
                     full_message = service.users().messages().get(
                         userId='me', 
                         id=message_id
                     ).execute()
-                    # Получаем метки сообщения
                     label_ids = full_message.get('labelIds', [])
 
-                    # Пропускаем черновики и отправленные сообщения
-                    if 'DRAFT' in label_ids or 'SENT' in label_ids:
-                        print(f"Пропускаем сообщение с метками {label_ids}")
-                        return {"status": "success", "message": "Messages processed"}
-                            
-                    # Обрабатываем только входящие сообщения
-                    if 'INBOX' in label_ids:
-                        try:
-                            # Получаем полное сообщение
-                            full_message = service.users().messages().get(
-                                userId='me',
-                                id=message_id,
-                                format='full'
-                            ).execute()
-
-                            message_content = await self._extract_message_content(full_message, message_id)
-
-                            if message_content:
-                                processed_messages.append(message_content)
-                                # Добавляем ID в множество обработанных
-                                self.processed_messages.add(message_id)
-                            
-                        except Exception as e:
-                            print(f"Ошибка при обработке сообщения {message_id}: {str(e)}")
-                            continue     
+                    # Обрабатываем сообщение
+                    message_content = await self.process_message(service, message_id, label_ids)
+                    if message_content:
+                        processed_messages.append(message_content)
 
                 except Exception as e:
                     if 'notFound' in str(e):
@@ -423,9 +393,6 @@ Content-Type: text/html; charset=utf-8\r\n\
             self._print_message_info(latest_message)
             return {"status": "success", "message": latest_message}
             
-        # except Exception as e:
-        #     print(f"Ошибка при обработке сообщений: {str(e)}")
-        #     raise HTTPException(status_code=400, detail=str(e))    
         return {"status": "success", "message": "Messages processed"}
 
     def _extract_email_from_header(self, header_value: str) -> str:
@@ -456,8 +423,9 @@ Content-Type: text/html; charset=utf-8\r\n\
         )
         
         # Если тред не найден, прекращаем обработку
-        if not existing_thread:
-            return {"status": "success", "message": "No active thread found"}
+        if existing_thread is None:
+            print(f"Тред не найден")
+            return None
         
         # Получаем время сообщения в формате timestamp
         date_str = headers.get('Date')
@@ -502,3 +470,48 @@ Content-Type: text/html; charset=utf-8\r\n\
         print(f"Кому: {message['to']}")
         print(f"Дата: {message['date']}")
         print(f"Содержание сообщения: {message['body']}")
+
+    async def process_message(self, service, message_id: str, label_ids: list) -> dict:
+        """
+        Обрабатывает отдельное сообщение Gmail
+        
+        Args:
+            service: Gmail API сервис
+            message_id: ID сообщения
+            label_ids: Список меток сообщения
+            
+        Returns:
+            dict: Обработанное содержимое сообщения или None если сообщение пропущено
+        """
+        # Пропускаем уже обработанные сообщения
+        if message_id in self.processed_messages:
+            print(f"Пропускаем дублирующееся сообщение: {message_id}")
+            return None
+            
+        # Пропускаем черновики и отправленные сообщения    
+        if 'DRAFT' in label_ids or 'SENT' in label_ids:
+            print(f"Пропускаем сообщение с метками {label_ids}")
+            return None
+                
+        # Обрабатываем только входящие сообщения
+        if 'INBOX' in label_ids:
+            try:
+                # Получаем полное сообщение
+                full_message = service.users().messages().get(
+                    userId='me',
+                    id=message_id,
+                    format='full'
+                ).execute()
+
+                message_content = await self._extract_message_content(full_message, message_id)
+                
+                if message_content:
+                    # Добавляем ID в множество обработанных
+                    self.processed_messages.add(message_id)
+                    return message_content
+                    
+            except Exception as e:
+                print(f"Ошибка при обработке сообщения {message_id}: {str(e)}")
+                return None
+                
+        return None
