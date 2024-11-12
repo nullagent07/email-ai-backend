@@ -243,9 +243,9 @@ async def gmail_webhook(
             print(f"Ошибка при получении сообщений: {str(e)}")
             return {"status": "error", "message": str(e)}
 
-        # Обрабатываем сообщения через GmailService
+        # # Обрабатываем сообщения через GmailService
         result = await gmail_service.process_webhook_gmail_messages(history_list, gmail)
-        return result
+        return {"status": "success", "message": "Сообщения обработаны успешно"}
         
     except Exception as e:
         print(f"Ошибка при обработке уведомления: {str(e)}")
