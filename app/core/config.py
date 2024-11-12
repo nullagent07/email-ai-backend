@@ -55,7 +55,8 @@ class Settings(BaseSettings):
     openai_base_assistant_id: str = "asst_cYTPINH01O8gjYMjjewn0yOg" # ID предварительно созданного базового ассистента
 
     google_project_id: str = "effective-reach-425812-u0"
-    google_topic_id: str = "l6E-5+QaFnBk-l"
+    google_topic_id: str = "l6E-5+QaFnBk-i"
+    google_service_account: str = "email-assistant@effective-reach-425812-u0.iam.gserviceaccount.com"
 
     class Config:
         env_file = os.getenv("ENV_FILE", ".env")

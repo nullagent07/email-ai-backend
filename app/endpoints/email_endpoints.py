@@ -17,6 +17,9 @@ from app.repositories.oauth_credentials_repository import OAuthCredentialsReposi
 from app.core.config import settings
 from app.services.oauth_service import OAuthService
 import email.utils
+from google.auth.transport import requests
+from google.oauth2 import id_token
+from app.utils.oauth_verification import verify_google_webhook_token
 
 router = APIRouter(prefix="/email", tags=["email"])
 
@@ -137,14 +140,34 @@ async def get_message_by_id(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+# Изменяем начало функции gmail_webhook
 @router.post("/gmail/webhook")
 async def gmail_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     try:
+        for header, value in request.headers.items():
+            print(f"{header}: {value}")
+        
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Отсутствует или неверный заголовок Authorization"
+            )
+            
+        # Проверяем токен
+        is_valid = await verify_google_webhook_token(auth_header)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Недействительный токен авторизации"
+            )
+
         # Получаем данные запроса от Pub/Sub
         pubsub_message = await request.json()
+        print("pubsub_message:", pubsub_message)
         
         # Проверяем наличие поля 'message' в запросе
         if 'message' not in pubsub_message:
@@ -160,50 +183,49 @@ async def gmail_webhook(
         history_id = email_data['historyId']
         
         print(f"Email address: {email_address}, History ID: {history_id}")
-
-        oauth_service = OAuthService(db)
+            
         gmail_service = GmailService(db)
-        
-        # Получаем учетные данные OAuth
-        oauth_creds = await oauth_service.get_oauth_credentials_by_email_and_provider(email=email_address, provider='google')
-        
-        # Проверяем наличие учетных данных
-        if not oauth_creds:
-            print(f"OAuth credentials not found for email: {email_address}")
-            return {"status": "success", "message": "No credentials found"}
-        
-        creds = Credentials.from_authorized_user_info(
-            info={
-                "token": oauth_creds.access_token,
-                "refresh_token": oauth_creds.refresh_token,
-                "client_id": settings.google_client_id,
-                "client_secret": settings.google_client_secret,
-            }
-        )
-        service = build('gmail', 'v1', credentials=creds)
+        gmail = await gmail_service.create_gmail_service(email_address)
         
         try:
-            # Используем historyId немного меньше текущего
-            start_history_id = str(int(history_id) - 100)
-            
-            history_list = service.users().history().list(
+            # Сначала пробуем получить историю
+            history_list = gmail.users().history().list(
                 userId='me',
-                startHistoryId=start_history_id,
-                maxResults=10
+                startHistoryId=history_id
+            ).execute()
+        except Exception as e:
+            print(f"Ошибка при получении истории: {str(e)}")
+            # Если не получилось получить историю, пробуем получить последние сообщения
+            messages = gmail.users().messages().list(
+                userId='me',
+                maxResults=1,
+                q='is:inbox'  # Ищем во входящих
             ).execute()
             
-            return await gmail_service.process_webhook_gmail_messages(history_list, service)
-            
-        except Exception as e:
-            if 'notFound' in str(e):
-                # Если сообщение не найдено, возвращаем успешный статус
-                return {"status": "success", "message": "Message not found"}
-            print(f"Ошибка при получении истории: {str(e)}")
-            raise HTTPException(status_code=400, detail=str(e))
+            if 'messages' in messages:
+                # Создаем структуру истории вручную
+                history_list = {
+                    'history': [{
+                        'id': history_id,
+                        'messages': messages['messages']
+                    }]
+                }
+            else:
+                history_list = {'history': []}
+        
+        # Добавляем логирование для проверки ответа
+        print("=== History List Response ===")
+        print(json.dumps(history_list, indent=2))
+        print("============================")
+
+        # Обрабатываем сообщения
+        result = await gmail_service.process_webhook_gmail_messages(history_list, gmail)
+        
+        return result
         
     except Exception as e:
         print(f"Ошибка при обработке уведомления от Pub/Sub: {str(e)}")
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Не удалось обработать уведомление: {str(e)}"
         )

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.oauth_credentials import OAuthCredentials
 from uuid import UUID
+from sqlalchemy import and_
 
 class OAuthCredentialsRepository:
     def __init__(self, db: AsyncSession):
@@ -18,13 +19,24 @@ class OAuthCredentialsRepository:
         return result.scalars().first()
 
     async def get_by_email_and_provider(self, email: str, provider: str) -> OAuthCredentials:
-        result = await self.db.execute(
-            select(OAuthCredentials).filter(
+        """
+        Получает учетные данные OAuth по email и провайдеру
+        
+        Args:
+            email: Email пользователя
+            provider: Название провайдера (например, 'google')
+            
+        Returns:
+            OAuthCredentials или None если не найдено
+        """
+        query = select(OAuthCredentials).where(
+            and_(
                 OAuthCredentials.email == email,
                 OAuthCredentials.provider == provider
             )
         )
-        return result.scalars().first()
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
 
     async def create(self, oauth_credentials: OAuthCredentials) -> OAuthCredentials:
         self.db.add(oauth_credentials)

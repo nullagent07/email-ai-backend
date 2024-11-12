@@ -17,6 +17,7 @@ from app.models.email_message import EmailMessage, MessageType
 from app.repositories.email_message_repository import EmailMessageRepository
 from uuid import UUID
 import email.utils
+from typing import Any
 
 settings = get_app_settings()
 
@@ -31,41 +32,41 @@ class GmailService:
         self.message_repo = EmailMessageRepository(db)
         self.processed_messages = set()
         
-    async def setup_email_monitoring(self, user_id: UUID):
-        """Настраивает отслеживание писем для активного треда"""
-        
-        # Получаем OAuth credentials
-        oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(
-            user_id, 
-            "google"
-        )
-        
-        if not oauth_creds:
-            raise ValueError("Gmail credentials not found")
-            
-        # Создаем сервис Gmail API
-        creds = Credentials.from_authorized_user_info(
-            info={
-                "token": oauth_creds.access_token,
-                "refresh_token": oauth_creds.refresh_token,
-                "client_id": settings.google_client_id,
-                "client_secret": settings.google_client_secret,
-            }
-        )
-        
-        service = build('gmail', 'v1', credentials=creds)
-        
-        # Настраиваем push-уведомления
-        request = {
-            'labelIds': ['INBOX'],
-            'topicName': f'projects/{settings.google_project_id}/topics/{settings.google_topic_id}'
-        }
-        
+    async def setup_email_monitoring(self, user_id: UUID) -> None:
         try:
-            # Активируем отслеживание
-            service.users().watch(userId='me', body=request).execute()
+            oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(user_id, "google")
+            if not oauth_creds:
+                raise ValueError("Gmail credentials not found")
+
+            creds = Credentials.from_authorized_user_info(
+                info={
+                    "token": oauth_creds.access_token,
+                    "refresh_token": oauth_creds.refresh_token,
+                    "client_id": settings.google_client_id,
+                    "client_secret": settings.google_client_secret,
+                }
+            )
+            
+            service = build('gmail', 'v1', credentials=creds)
+            
+            topic_name = f"projects/{settings.google_project_id}/topics/{settings.google_topic_id}"
+            
+            request = {
+                'labelIds': ['INBOX'],
+                'topicName': topic_name,
+                'labelFilterAction': 'include'
+            }
+            
+            try:
+                response = service.users().watch(userId='me', body=request).execute()
+                print(f"Watch response: {response}")
+                return response
+            except Exception as e:
+                print(f"Watch request failed: {str(e)}")
+                raise
             
         except Exception as e:
+            print(f"Error in setup_email_monitoring: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to setup email monitoring: {str(e)}"
@@ -79,24 +80,8 @@ class GmailService:
             return
             
         try:
-            # Получаем OAuth credentials
-            oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(
-                user.id, 
-                "google"
-            )
-            
-            if not oauth_creds:
-                raise ValueError("Gmail credentials not found")
-                
             # Создаем Gmail API клиент
-            gmail = build('gmail', 'v1', credentials=Credentials.from_authorized_user_info(
-                info={
-                    "token": oauth_creds.access_token,
-                    "refresh_token": oauth_creds.refresh_token,
-                    "client_id": settings.google_client_id,
-                    "client_secret": settings.google_client_secret,
-                }
-            ))
+            gmail = await self.create_gmail_service(user.id)
             
             # Получаем полное сообщение
             message = gmail.users().messages().get(
@@ -107,15 +92,17 @@ class GmailService:
 
             # Извлекаем содержимое
             email_content = self._extract_email_content(message)
+
+            print(f"email_content: {email_content}")
             
-            # Сохраняем входящее сообщение в БД
+            # Сохрняем входящее сообщение в БД
             await self.message_repo.create_message(EmailMessage(
                 thread_id=email_thread.id,
                 message_type=MessageType.INCOMING,
                 subject=email_content['subject'],
                 content=email_content['body'],
                 sender_email=email_content['from'],
-                recipient_email=oauth_creds.email
+                recipient_email=email_content['from']
             ))
             
             # Отправляем в OpenAI и получаем ответ
@@ -142,7 +129,7 @@ class GmailService:
                     message_type=MessageType.OUTGOING,
                     subject=f"Re: {email_content['subject']}",
                     content=ai_response,
-                    sender_email=oauth_creds.email,
+                    sender_email=email_content['from'],
                     recipient_email=email_content['from']
                 ))
                 
@@ -192,7 +179,7 @@ class GmailService:
             instructions=f"""Ты - умный email ассистент, который помогает вести переписку с {thread_data.recipient_name}.
             
             Формат письма (используй HTML-теги):
-            1. Базовая структура:
+            1. Базовая структур:
                <div style="margin-bottom: 20px">Приветствие</div>
                
                <div style="margin-bottom: 15px; text-indent: 20px">Первый абзац основной части</div>
@@ -257,7 +244,7 @@ class GmailService:
             """
         )
 
-        # 5. Проверяем существование ассистента
+        # 5. Проверяем суествование ассистента
         assistant = await self.openai_service.get_assistant(assistant_id)
         if not assistant:
             raise HTTPException(
@@ -358,44 +345,78 @@ Content-Type: text/html; charset=utf-8\r\n\
         return thread
 
     async def process_webhook_gmail_messages(self, history_list: dict, service) -> dict:
-        if not history_list.get('history', []):
-            return {"status": "success", "message": "No new messages"}
-        
         processed_messages = []
         
-        for history in history_list['history']:
-            for message_added in history.get('messagesAdded', []):
-                message = message_added['message']
+        print("\n=== Начало обработки истории ===")
+        
+        if 'history' not in history_list:
+            print("История пуста")
+            return {"status": "success", "message": "No messages to process"}
+            
+        history_records = history_list['history']
+        print(f"Количество записей в истории: {len(history_records)}")
+        
+        for history_record in history_records:
+            print(f"\nОбработка записи истории ID: {history_record['id']}")
+            
+            # Получаем и проверяем сообщения в истории
+            messages = history_record['messages'] if 'messages' in history_record else []
+            print(f"Сообщения в истории: {messages}")
+            
+            # Получаем полные данные для каждого сообщения
+            for message in messages:
                 message_id = message['id']
-                
                 try:
-                    # Получаем полное сообщение для меток
+                    # Получаем полное сообщение
                     full_message = service.users().messages().get(
-                        userId='me', 
-                        id=message_id
+                        userId='me',
+                        id=message_id,
+                        format='full'
                     ).execute()
+                    
+                    # Получаем метки
                     label_ids = full_message.get('labelIds', [])
+                    print(f"Сообщение {message_id} имеет метки: {label_ids}")
+                    
+                    # Пропускаем уже обработанные сообщения
+                    if message_id in self.processed_messages:
+                        print(f"Пропускаем дублирующееся сообщение: {message_id}")
+                        continue
+                        
+                    # Пропускаем черновики и отправленные сообщения    
+                    if 'DRAFT' in label_ids or 'SENT' in label_ids:
+                        print(f"Пропускаем сообщение с метками {label_ids}")
+                        continue
+                            
+                    # Проверяем наличие метки INBOX
+                    if 'INBOX' not in label_ids:
+                        print(f"Сообщение не во входящих, пропускаем. Метки: {label_ids}")
+                        continue
 
-                    # Обрабатываем сообщение
-                    message_content = await self.process_message(service, message_id, label_ids)
+                    # Извлекаем содержимое сообщения
+                    message_content = await self._extract_message_content(full_message, message_id)
+                    print(f"Извлеченное содержимое: {message_content}")
+                    
                     if message_content:
                         processed_messages.append(message_content)
+                        self.processed_messages.add(message_id)
+                        print(f"Сообщение {message_id} успешно обработано")
                     else:
-                        return {"status": "success", "message": "Message processed"}
+                        print(f"Сообщение {message_id} пропущено: не найден активный тред")
 
                 except Exception as e:
-                    if 'notFound' in str(e):
-                        print(f"Message {message_id} not found, skipping: {str(e)}")
-                        return {"status": "success", "message": f"Message {message_id} not found"}
-                    else:
-                        raise e
+                    print(f"Ошибка при получении сообщения {message_id}: {str(e)}")
+                    continue
+
+        print("\n=== Итоги обработки ===")
+        print(f"Всего обработано сообений: {len(processed_messages)}")
 
         if processed_messages:
             latest_message = max(processed_messages, key=lambda x: x['timestamp'])
             self._print_message_info(latest_message)
             return {"status": "success", "message": latest_message}
             
-        return {"status": "success", "message": "Messages processed"}
+        return {"status": "success", "message": "No messages to process"}
 
     def _extract_email_from_header(self, header_value: str) -> str:
         """Извлекает email адрес из заголовка письма
@@ -473,47 +494,36 @@ Content-Type: text/html; charset=utf-8\r\n\
         print(f"Дата: {message['date']}")
         print(f"Содержание сообщения: {message['body']}")
 
-    async def process_message(self, service, message_id: str, label_ids: list) -> dict:
+    async def create_gmail_service(self, email_address: str) -> Any:
         """
-        Обрабатывает отдельное сообщение Gmail
+        Создает и возвращает сервис Gmail API
         
         Args:
-            service: Gmail API сервис
-            message_id: ID сообщения
-            label_ids: Список меток сообщения
+            user_id: ID пользователя
             
         Returns:
-            dict: Обработанное содержимое сообщения или None если сообщение пропущено
-        """
-        # Пропускаем уже обработанные сообщения
-        if message_id in self.processed_messages:
-            print(f"Пропускаем дублирующееся сообщение: {message_id}")
-            return None
+            service: Объект сервиса Gmail API
             
-        # Пропускаем черновики и отправленные сообщения    
-        if 'DRAFT' in label_ids or 'SENT' in label_ids:
-            print(f"Пропускаем сообщение с метками {label_ids}")
-            return None
-                
-        # Обрабатываем только входящие сообщения
-        if 'INBOX' in label_ids:
-            try:
-                # Получаем полное сообщение
-                full_message = service.users().messages().get(
-                    userId='me',
-                    id=message_id,
-                    format='full'
-                ).execute()
-
-                message_content = await self._extract_message_content(full_message, message_id)
-                
-                if message_content:
-                    # Добавляем ID в множество обработанных
-                    self.processed_messages.add(message_id)
-                    return message_content
-                    
-            except Exception as e:
-                print(f"Ошибка при обработке сообщения {message_id}: {str(e)}")
-                return None
-                
-        return None
+        Raises:
+            ValueError: Если не найдены учетные данные OAuth
+        """
+        # Получаем OAuth credentials
+        oauth_creds = await self.oauth_repo.get_by_email_and_provider(
+            email_address, 
+            "google"
+        )
+        
+        if not oauth_creds:
+            raise ValueError("Gmail credentials not found")
+            
+        # Создаем сервис Gmail API
+        creds = Credentials.from_authorized_user_info(
+            info={
+                "token": oauth_creds.access_token,
+                "refresh_token": oauth_creds.refresh_token,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+            }
+        )
+        
+        return build('gmail', 'v1', credentials=creds)
