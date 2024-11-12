@@ -167,64 +167,88 @@ async def gmail_webhook(
 
         # Получаем данные запроса от Pub/Sub
         pubsub_message = await request.json()
-        print("pubsub_message:", pubsub_message)
-        
-        # Проверяем наличие поля 'message' в запросе
-        if 'message' not in pubsub_message:
-            return {"status": "acknowledged"}
+        print("\n=== Получено уведомление от Pub/Sub ===")
+        print("Сырые данные:", json.dumps(pubsub_message, indent=2))
         
         # Декодируем данные сообщения
         message_data = pubsub_message['message']['data']
         decoded_data = base64.b64decode(message_data).decode('utf-8')
-        
-        # Преобразуем данные в JSON
         email_data = json.loads(decoded_data)
+        
         email_address = email_data.get('emailAddress')
         history_id = email_data['historyId']
-        
-        print(f"Email address: {email_address}, History ID: {history_id}")
             
         gmail_service = GmailService(db)
         gmail = await gmail_service.create_gmail_service(email_address)
         
         try:
-            # Сначала пробуем получить историю
-            history_list = gmail.users().history().list(
+            # Получаем только последнее сообщение
+            messages_response = gmail.users().messages().list(
                 userId='me',
-                startHistoryId=history_id
-            ).execute()
-        except Exception as e:
-            print(f"Ошибка при получении истории: {str(e)}")
-            # Если не получилось получить историю, пробуем получить последние сообщения
-            messages = gmail.users().messages().list(
-                userId='me',
-                maxResults=1,
-                q='is:inbox'  # Ищем во входящих
+                q='in:inbox -in:sent -in:draft newer_than:1h',  # Только входящие за последний час
+                maxResults=1  # Получаем только одно последнее сообщение
             ).execute()
             
-            if 'messages' in messages:
-                # Создаем структуру истории вручную
+            if 'messages' in messages_response and messages_response['messages']:
+                # Получаем последнее сообщение
+                last_message = messages_response['messages'][0]
+                
+                # Получаем полное сообщение
+                full_message = gmail.users().messages().get(
+                    userId='me',
+                    id=last_message['id'],
+                    format='full'
+                ).execute()
+                
+                # Извлекаем заголовки
+                headers = {h['name']: h['value'] for h in full_message['payload'].get('headers', [])}
+                
+                print("\n=== Последнее входящее сообщение ===")
+                print(f"ID: {last_message['id']}")
+                print(f"От: {headers.get('From', 'Неизвестно')}")
+                print(f"Кому: {headers.get('To', 'Неизвестно')}")
+                print(f"Тема: {headers.get('Subject', 'Без темы')}")
+                print(f"Дата: {headers.get('Date', 'Неизвестно')}")
+                print("Текст:")
+                
+                # Извлекаем текст сообщения
+                if 'parts' in full_message['payload']:
+                    for part in full_message['payload']['parts']:
+                        if part['mimeType'] == 'text/plain' and 'data' in part['body']:
+                            text = base64.urlsafe_b64decode(part['body']['data']).decode()
+                            # Берем только первую строку текста (последнее сообщение)
+                            first_line = text.split('\n')[0].strip()
+                            print(first_line)
+                            break
+                elif 'body' in full_message['payload'] and 'data' in full_message['payload']['body']:
+                    text = base64.urlsafe_b64decode(full_message['payload']['body']['data']).decode()
+                    # Берем только первую строку текста (последнее сообщение)
+                    first_line = text.split('\n')[0].strip()
+                    print(first_line)
+                    
+                print("-" * 50)
+                
+                # Создаем историю из последнего сообщения
                 history_list = {
                     'history': [{
                         'id': history_id,
-                        'messages': messages['messages']
+                        'messages': [last_message]
                     }]
                 }
             else:
+                print("Новых сообщений не найдено")
                 history_list = {'history': []}
-        
-        # Добавляем логирование для проверки ответа
-        print("=== History List Response ===")
-        print(json.dumps(history_list, indent=2))
-        print("============================")
+            
+        except Exception as e:
+            print(f"Ошибка при получении сообщений: {str(e)}")
+            return {"status": "error", "message": str(e)}
 
-        # Обрабатываем сообщения
+        # Обрабатываем сообщения через GmailService
         result = await gmail_service.process_webhook_gmail_messages(history_list, gmail)
-        
         return result
         
     except Exception as e:
-        print(f"Ошибка при обработке уведомления от Pub/Sub: {str(e)}")
+        print(f"Ошибка при обработке уведомления: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Не удалось обработать уведомление: {str(e)}"

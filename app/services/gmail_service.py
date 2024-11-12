@@ -18,6 +18,7 @@ from app.repositories.email_message_repository import EmailMessageRepository
 from uuid import UUID
 import email.utils
 from typing import Any
+import json
 
 settings = get_app_settings()
 
@@ -348,6 +349,7 @@ Content-Type: text/html; charset=utf-8\r\n\
         processed_messages = []
         
         print("\n=== Начало обработки истории ===")
+        print("Полученные данные истории:", json.dumps(history_list, indent=2))
         
         if 'history' not in history_list:
             print("История пуста")
@@ -359,9 +361,14 @@ Content-Type: text/html; charset=utf-8\r\n\
         for history_record in history_records:
             print(f"\nОбработка записи истории ID: {history_record['id']}")
             
-            # Получаем и проверяем сообщения в истории
-            messages = history_record['messages'] if 'messages' in history_record else []
-            print(f"Сообщения в истории: {messages}")
+            # Получаем сообщения из истории
+            messages = []
+            if 'messagesAdded' in history_record:
+                messages.extend([msg['message'] for msg in history_record['messagesAdded']])
+            elif 'messages' in history_record:
+                messages.extend(history_record['messages'])
+                
+            print(f"Найдено сообщений: {len(messages)}")
             
             # Получаем полные данные для каждого сообщения
             for message in messages:
@@ -374,49 +381,62 @@ Content-Type: text/html; charset=utf-8\r\n\
                         format='full'
                     ).execute()
                     
+                    print("\n" + "="*50)
+                    print(f"Обработка сообщения ID: {message_id}")
+                    print("="*50)
+                    
                     # Получаем метки
                     label_ids = full_message.get('labelIds', [])
-                    print(f"Сообщение {message_id} имеет метки: {label_ids}")
+                    print(f"Метки сообщения: {', '.join(label_ids)}")
                     
                     # Пропускаем уже обработанные сообщения
                     if message_id in self.processed_messages:
-                        print(f"Пропускаем дублирующееся сообщение: {message_id}")
+                        print("⚠️ Пропускаем дублирующееся сообщение")
                         continue
-                        
-                    # Пропускаем черновики и отправленные сообщения    
-                    if 'DRAFT' in label_ids or 'SENT' in label_ids:
-                        print(f"Пропускаем сообщение с метками {label_ids}")
+                    
+                    # Пропускаем отправленные сообщения и черновики
+                    if any(label in label_ids for label in ['SENT', 'DRAFT', 'CHAT']):
+                        print("⚠️ Пропускаем исходящее сообщение или черновик")
                         continue
-                            
+                    
                     # Проверяем наличие метки INBOX
                     if 'INBOX' not in label_ids:
-                        print(f"Сообщение не во входящих, пропускаем. Метки: {label_ids}")
+                        print("⚠️ Сообщение не во входящих, пропускаем")
                         continue
 
                     # Извлекаем содержимое сообщения
                     message_content = await self._extract_message_content(full_message, message_id)
-                    print(f"Извлеченное содержимое: {message_content}")
                     
                     if message_content:
+                        print("\n📨 НОВОЕ ВХОДЯЩЕЕ СООБЩЕНИЕ")
+                        print("-"*50)
+                        print(f"От:       {message_content['from']}")
+                        print(f"Кому:     {message_content['to']}")
+                        print(f"Дата:     {message_content['date']}")
+                        print(f"Тема:     {message_content['subject']}")
+                        print("-"*50)
+                        print("Содержание:")
+                        print(f"{message_content['body']}")
+                        print("-"*50)
+                        
                         processed_messages.append(message_content)
                         self.processed_messages.add(message_id)
-                        print(f"Сообщение {message_id} успешно обработано")
+                        print("✅ Сообщение успешно обработано")
                     else:
-                        print(f"Сообщение {message_id} пропущено: не найден активный тред")
+                        print("❌ Не удалось извлечь содержимое сообщения")
 
                 except Exception as e:
-                    print(f"Ошибка при получении сообщения {message_id}: {str(e)}")
+                    print(f"❌ Ошибка при обработке сообщения: {str(e)}")
                     continue
 
         print("\n=== Итоги обработки ===")
-        print(f"Всего обработано сообений: {len(processed_messages)}")
+        print(f"Всего обработано входящих сообщений: {len(processed_messages)}")
 
         if processed_messages:
             latest_message = max(processed_messages, key=lambda x: x['timestamp'])
-            self._print_message_info(latest_message)
             return {"status": "success", "message": latest_message}
-            
-        return {"status": "success", "message": "No messages to process"}
+        else:
+            return {"status": "success", "message": "No new incoming messages"}
 
     def _extract_email_from_header(self, header_value: str) -> str:
         """Извлекает email адрес из заголовка письма
