@@ -13,6 +13,13 @@ from app.services.token_service import TokenService
 # other
 from datetime import datetime, timedelta
 from typing import Optional
+from fastapi import Depends
+from app.core.dependency import get_db
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from fastapi import HTTPException
+
+
 
 class OAuthService:
     def __init__(self, db: AsyncSession):
@@ -21,49 +28,51 @@ class OAuthService:
         self.token_service = TokenService()
         self.db = db
 
+    @classmethod
+    def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'OAuthService':
+        return cls(db)
+
     async def authenticate_oauth_user(self, token_data: dict):
-        # Извлекаем информацию о пользователе из token_data
-        email = token_data.get("email")
-        provider = "google"
+    # Декодируем id_token и получаем информацию о пользователе
+        id_info = id_token.verify_oauth2_token(token_data["id_token"], requests.Request())
+
+        print(f"ID info: {id_info}")
+        email = id_info.get("email")
+        name = id_info.get("name")
+
+        # Другие параметры из token_data
         access_token = token_data.get("access_token")
         refresh_token = token_data.get("refresh_token")
         expires_in = token_data.get("expires_in")
-        name = token_data.get("name")
 
-        # Проверяем, существует ли пользователь
+        # Проверка существования пользователя
         user = await self.user_repository.get_user_by_email(email)
         is_new_user = False
 
         if not user:
-            # Создаем нового пользователя без пароля
-            new_user = User(
-                name=name,
-                email=email,
-                is_subscription_active=False  # По умолчанию
-            )
+            new_user = User(name=name, email=email, is_subscription_active=False)
             user = await self.user_repository.create_user(new_user)
             is_new_user = True
 
-        # Обновляем или создаем OAuthCredentials
-        oauth_credentials = await self.oauth_repo.get_by_user_id_and_provider(user.id, provider)
+        # Обновление OAuth данных
+        oauth_credentials = await self.oauth_repo.get_by_user_id_and_provider(user.id, "google")
         if not oauth_credentials:
+            expires_at = expires_in if isinstance(expires_in, datetime) else datetime.utcnow() + timedelta(seconds=expires_in)
             new_credentials = OAuthCredentials(
                 user_id=user.id,
-                provider=provider,
+                provider="google",
                 access_token=access_token,
                 refresh_token=refresh_token,
-                expires_at=datetime.utcnow() + timedelta(seconds=expires_in),
+                expires_at=expires_at,
                 email=email
             )
             await self.oauth_repo.create(new_credentials)
         else:
-            # Обновляем существующие учетные данные
-            oauth_credentials.access_token = access_token
-            oauth_credentials.refresh_token = refresh_token
-            oauth_credentials.expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+            # Если expires_in — `datetime`, устанавливаем его напрямую, иначе — добавляем к текущему времени
+            oauth_credentials.expires_at = expires_in if isinstance(expires_in, datetime) else datetime.utcnow() + timedelta(seconds=expires_in)
             await self.oauth_repo.update(oauth_credentials)
 
-        # Создаем JWT access_token
+        # Генерация токена для пользователя
         token = self.token_service.create_access_token(data={"sub": str(user.id)})
 
         return token, is_new_user

@@ -21,14 +21,18 @@ from typing import Any
 import json
 import httpx
 from google.oauth2 import id_token
-
+from google.auth.transport import requests
+from google_auth_oauthlib.flow import InstalledAppFlow, Flow
+# from app.utils.oauth_verification import verify_google_webhook_token
+from fastapi import Depends
+from app.core.dependency import get_db
+from fastapi import Request
 
 settings = get_app_settings()
 
 class GmailService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
         self.oauth_repo = OAuthCredentialsRepository(db)
         self.thread_repo = EmailThreadRepository(db)
         self.assistant_repo = AssistantRepository(db)
@@ -36,6 +40,9 @@ class GmailService:
         self.message_repo = EmailMessageRepository(db)
         self.processed_messages = set()
 
+    @classmethod
+    def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'GmailService':
+        return cls(db)
         
     async def setup_email_monitoring(self, user_id: UUID) -> None:
         try:
@@ -311,37 +318,50 @@ Content-Type: text/html; charset=utf-8\r\n\
             return header_value[header_value.find('<')+1:header_value.find('>')]
         return header_value.strip()
     
-    async def verify_oauth_code(code: str):
-        token_url = "https://oauth2.googleapis.com/token"
-        data = {
-            "code": code,
-            "client_id": settings.google_client_id,
-            "client_secret": settings.google_client_secret,
-            "redirect_uri": settings.google_redirect_uri,
-            "grant_type": "authorization_code",
+    async def verify_gmail_oauth_code(self, code: str):
+
+        # Создаем конфигурацию клиента с client_id и client_secret из .env
+        client_config = {
+            "web": {
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uri": [settings.google_redirect_uri],
+            }
+        }
+        
+        # Инициализируем OAuth2 flow с помощью client_id и client_secret
+        flow = Flow.from_client_config(
+            client_config,
+            scopes=settings.google_extended_scope,
+            redirect_uri=settings.google_redirect_uri
+        )
+        # Обмениваем authorization code на токен
+        flow.fetch_token(code=code)
+        
+        print(f"Flow: {flow}")
+
+        # Получаем access_token
+        credentials = flow.credentials
+        token_data = {
+            "access_token": credentials.token,
+            "refresh_token": credentials.refresh_token,
+            "expires_in": credentials.expiry
         }
 
-        async with httpx.AsyncClient() as client:
-            token_response = await client.post(token_url, data=data)
-            if token_response.status_code != 200:
-                return None
-            token_data = token_response.json()
-
-            # Используем access_token для получения информации о пользователе
-            user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo"
-            headers = {"Authorization": f"Bearer {token_data['access_token']}"}
-            user_info_response = await client.get(user_info_url, headers=headers)
-            if user_info_response.status_code != 200:
-                return None
-            user_info = user_info_response.json()
-
+        # Проверяем ID-токен, чтобы получить информацию о пользователе
+        try:
+            id_info = id_token.verify_oauth2_token(credentials.id_token, requests.Request())
             # Объединяем данные токена и информацию о пользователе
-            token_data.update(user_info)
-
+            token_data.update(id_info)
             return token_data
 
+        except ValueError:
+            return None
+
     # Обновляем функцию проверки токена вебхука
-    async def verify_google_webhook_token(token: str) -> bool:
+    async def verify_google_webhook_token(self, token: str) -> bool:
         try:
             # Убираем префикс "Bearer"
             token = token.replace("Bearer ", "")

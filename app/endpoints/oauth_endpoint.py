@@ -6,8 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.oauth_service import OAuthService
 from app.core.dependency import get_db
 from app.core.config import get_app_settings
-from app.utils.oauth_verification import verify_oauth_code
+# from app.utils.oauth_verification import verify_oauth_code
 import secrets
+from app.services.gmail_service import GmailService
+from google_auth_oauthlib.flow import Flow
+
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -16,34 +20,105 @@ settings = get_app_settings()
 @router.get("/google/login")
 async def google_login(response: Response):
     """Генерирует URL для авторизации через Google"""
-    
+
     # Генерируем state token для безопасности
     state_token = secrets.token_urlsafe(32)
     response.set_cookie(
         key="oauth_state",
         value=state_token,
         httponly=True,
-        secure=False,  # Установите True в продакшене с HTTPS
+        secure=False,  # Установите True для HTTPS в продакшене
         max_age=600,  # 10 минут
         path="/"
     )
-    
-    # Формируем URL для авторизации
-    params = {
-        "client_id": settings.google_client_id,
-        "redirect_uri": settings.google_redirect_uri,
-        "response_type": "code",
-        "scope": " ".join(settings.google_extended_scope),
-        "access_type": "offline",  # Для получения refresh_token
-        "state": state_token,
-        "prompt": "consent"  # Всегда показывать окно согласия
+
+    # Создаем конфигурацию клиента
+    client_config = {
+        "web": {
+            "client_id": settings.google_client_id,
+            "client_secret": settings.google_client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [settings.google_redirect_uri]
+        }
     }
-    
-    # Создаем URL
-    query_string = "&".join(f"{k}={v}" for k, v in params.items())
-    authorization_url = f"https://accounts.google.com/o/oauth2/v2/auth?{query_string}"
-    
+
+    # Инициализируем flow и генерируем URL для авторизации
+    flow = Flow.from_client_config(
+        client_config,
+        scopes=settings.google_extended_scope,
+        redirect_uri=settings.google_redirect_uri
+    )
+    authorization_url, _ = flow.authorization_url(
+        access_type="offline",  # Для получения refresh_token
+        state=state_token,
+        prompt="consent"  # Всегда показывать окно согласия
+    )
+
     return {"authorization_url": authorization_url}
+
+# @router.get("/google/callback")
+# async def google_callback(
+#     request: Request,
+#     response: Response,
+#     db: AsyncSession = Depends(get_db),
+#     code: str = None,
+#     state: str = None,
+#     error: str = None,
+#     oauth_service: OAuthService = Depends(OAuthService.get_instance),
+#     gmail_service: GmailService = Depends(GmailService.get_instance),
+# ):
+#     """Обрабатывает callback от Google после авторизации и редиректит на фронтенд"""
+    
+#     # Проверяем наличие ошибки
+#     if error:
+#         # Формируем URL для редиректа на фронтенд с сообщением об ошибке
+#         redirect_url = f"{settings.frontend_url}/auth/callback?error={error}&state={state}"
+#         return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
+#     # Проверяем state token
+#     oauth_state = request.cookies.get("oauth_state")
+#     if not oauth_state or oauth_state != state:
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid state token")
+
+#     # Проверяем код авторизации и получаем данные токена
+#     token_data = await gmail_service.verify_gmail_oauth_code(code)
+#     if not token_data:
+#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to verify Google token")
+    
+#     # Инициализируем AuthService
+    
+    
+#     # Аутентифицируем или регистрируем пользователя
+#     access_token, is_new_user = await oauth_service.authenticate_oauth_user(token_data)
+    
+#     # Формируем URL для редиректа
+#     redirect_params = {
+#         "status": "success",
+#         "is_new_user": str(is_new_user).lower(),
+#         "code": code,
+#         "state": state
+#     }
+
+#     query_string = "&".join(f"{k}={v}" for k, v in redirect_params.items())
+#     redirect_url = f"{settings.frontend_url}/auth/callback?{query_string}"
+    
+#     response = RedirectResponse(
+#         url=redirect_url,
+#         status_code=status.HTTP_303_SEE_OTHER
+#     )
+    
+#     # Устанавливаем куки с access_token
+#     response.set_cookie(
+#         key="access_token",
+#         value=f"Bearer {access_token}",
+#         httponly=True,
+#         secure=False,  # Установите True для HTTPS
+#         max_age=settings.access_token_expire_minutes * 60,
+#     )
+    
+#     return response
+
 
 @router.get("/google/callback")
 async def google_callback(
@@ -53,48 +128,62 @@ async def google_callback(
     code: str = None,
     state: str = None,
     error: str = None,
+    oauth_service: OAuthService = Depends(OAuthService.get_instance),
+    gmail_service: GmailService = Depends(GmailService.get_instance),
 ):
     """Обрабатывает callback от Google после авторизации и редиректит на фронтенд"""
     
-    # Проверяем наличие ошибки
+    # Обрабатываем ошибки авторизации от Google
     if error:
-        # Формируем URL для редиректа на фронтенд с сообщением об ошибке
         redirect_url = f"{settings.frontend_url}/auth/callback?error={error}&state={state}"
         return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
 
-    # Проверяем state token
-    oauth_state = request.cookies.get("oauth_state")
-    if not oauth_state or oauth_state != state:
+    # Проверка state token
+    if not (oauth_state := request.cookies.get("oauth_state")) or oauth_state != state:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid state token")
-    
-    # Проверяем код авторизации и получаем данные токена
-    token_data = await verify_oauth_code(code)
-    if not token_data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to verify Google token")
-    
-    # Инициализируем AuthService
-    oauth_service = OAuthService(db)
-    
+
+    # Настраиваем OAuth2 flow
+    client_config = {
+        "web": {
+            "client_id": settings.google_client_id,
+            "client_secret": settings.google_client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [settings.google_redirect_uri]
+        }
+    }
+    flow = Flow.from_client_config(
+        client_config,
+        scopes=settings.google_extended_scope,
+        redirect_uri=settings.google_redirect_uri
+    )
+
+    # Обмениваем код авторизации на токен
+    flow.fetch_token(code=code)
+    credentials = flow.credentials
+
+    # Получаем данные пользователя через токен
+    token_data = {
+        "access_token": credentials.token,
+        "refresh_token": credentials.refresh_token,
+        "expires_in": credentials.expiry,
+        "id_token": credentials.id_token,
+    }
+
     # Аутентифицируем или регистрируем пользователя
     access_token, is_new_user = await oauth_service.authenticate_oauth_user(token_data)
     
-    # Формируем URL для редиректа
+    # Формируем URL для редиректа с параметрами
     redirect_params = {
         "status": "success",
         "is_new_user": str(is_new_user).lower(),
-        "code": code,
         "state": state
     }
-
     query_string = "&".join(f"{k}={v}" for k, v in redirect_params.items())
     redirect_url = f"{settings.frontend_url}/auth/callback?{query_string}"
     
-    response = RedirectResponse(
-        url=redirect_url,
-        status_code=status.HTTP_303_SEE_OTHER
-    )
-    
-    # Устанавливаем куки с access_token
+    # Устанавливаем куки с access_token и выполняем редирект
+    response = RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
     response.set_cookie(
         key="access_token",
         value=f"Bearer {access_token}",

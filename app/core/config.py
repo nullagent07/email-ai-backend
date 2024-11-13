@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # ]
 
     google_basic_scope: list[str] = [
+        "openid",
         "https://www.googleapis.com/auth/userinfo.profile",
         "https://www.googleapis.com/auth/userinfo.email",
     ]
