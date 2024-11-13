@@ -336,67 +336,6 @@ Content-Type: text/html; charset=utf-8\r\n\
         
         return build('gmail', 'v1', credentials=creds)
 
-    async def extract_email_from_header(self, header_value: str) -> str:
-        """Извлекает email адрес из заголовка письма
-        
-        Args:
-            header_value: Значение заголовка (например, "Name <email@domain.com>")
-            
-        Returns:
-            str: Извлеченный email адрес
-            
-        Examples:
-            >>> extract_email_from_header("John Doe <john@example.com>")
-            'john@example.com'
-            >>> extract_email_from_header("email@domain.com")
-            'email@domain.com'
-        """
-        if '<' in header_value and '>' in header_value:
-            return header_value[header_value.find('<')+1:header_value.find('>')]
-        return header_value.strip()
-    
-    async def verify_gmail_oauth_code(self, code: str):
-
-        # Создаем конфигурацию клиента с client_id и client_secret из .env
-        client_config = {
-            "web": {
-                "client_id": settings.google_client_id,
-                "client_secret": settings.google_client_secret,
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uri": [settings.google_redirect_uri],
-            }
-        }
-        
-        # Инициализируем OAuth2 flow с помощью client_id и client_secret
-        flow = Flow.from_client_config(
-            client_config,
-            scopes=settings.google_extended_scope,
-            redirect_uri=settings.google_redirect_uri
-        )
-        # Обмениваем authorization code на токен
-        flow.fetch_token(code=code)
-        
-        print(f"Flow: {flow}")
-
-        # Получаем access_token
-        credentials = flow.credentials
-        token_data = {
-            "access_token": credentials.token,
-            "refresh_token": credentials.refresh_token,
-            "expires_in": credentials.expiry
-        }
-
-        # Проверяем ID-токен, чтобы получить информацию о пользователе
-        try:
-            id_info = id_token.verify_oauth2_token(credentials.id_token, requests.Request())
-            # Объединяем данные токена и информацию о пользователе
-            token_data.update(id_info)
-            return token_data
-
-        except ValueError:
-            return None
-
     # Обновляем функцию проверки токена вебхука
     async def verify_google_webhook_token(self, token: str) -> bool:
         try:
