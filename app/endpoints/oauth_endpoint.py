@@ -57,68 +57,6 @@ async def google_login(response: Response):
 
     return {"authorization_url": authorization_url}
 
-# @router.get("/google/callback")
-# async def google_callback(
-#     request: Request,
-#     response: Response,
-#     db: AsyncSession = Depends(get_db),
-#     code: str = None,
-#     state: str = None,
-#     error: str = None,
-#     oauth_service: OAuthService = Depends(OAuthService.get_instance),
-#     gmail_service: GmailService = Depends(GmailService.get_instance),
-# ):
-#     """Обрабатывает callback от Google после авторизации и редиректит на фронтенд"""
-    
-#     # Проверяем наличие ошибки
-#     if error:
-#         # Формируем URL для редиректа на фронтенд с сообщением об ошибке
-#         redirect_url = f"{settings.frontend_url}/auth/callback?error={error}&state={state}"
-#         return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
-
-#     # Проверяем state token
-#     oauth_state = request.cookies.get("oauth_state")
-#     if not oauth_state or oauth_state != state:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid state token")
-
-#     # Проверяем код авторизации и получаем данные токена
-#     token_data = await gmail_service.verify_gmail_oauth_code(code)
-#     if not token_data:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to verify Google token")
-    
-#     # Инициализируем AuthService
-    
-    
-#     # Аутентифицируем или регистрируем пользователя
-#     access_token, is_new_user = await oauth_service.authenticate_oauth_user(token_data)
-    
-#     # Формируем URL для редиректа
-#     redirect_params = {
-#         "status": "success",
-#         "is_new_user": str(is_new_user).lower(),
-#         "code": code,
-#         "state": state
-#     }
-
-#     query_string = "&".join(f"{k}={v}" for k, v in redirect_params.items())
-#     redirect_url = f"{settings.frontend_url}/auth/callback?{query_string}"
-    
-#     response = RedirectResponse(
-#         url=redirect_url,
-#         status_code=status.HTTP_303_SEE_OTHER
-#     )
-    
-#     # Устанавливаем куки с access_token
-#     response.set_cookie(
-#         key="access_token",
-#         value=f"Bearer {access_token}",
-#         httponly=True,
-#         secure=False,  # Установите True для HTTPS
-#         max_age=settings.access_token_expire_minutes * 60,
-#     )
-    
-#     return response
-
 
 @router.get("/google/callback")
 async def google_callback(
@@ -171,7 +109,7 @@ async def google_callback(
     }
 
     # Аутентифицируем или регистрируем пользователя
-    access_token, is_new_user = await oauth_service.authenticate_oauth_user(token_data)
+    access_token, is_new_user = await gmail_service.authenticate_oauth_user(token_data)
     
     # Формируем URL для редиректа с параметрами
     redirect_params = {

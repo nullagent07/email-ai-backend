@@ -79,5 +79,3 @@ class EmailService:
         await self.db.commit()
         await self.db.refresh(message)
         return message
-
-    # Добавьте дополнительные асинхронные методы по необходимости

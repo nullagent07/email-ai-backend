@@ -12,7 +12,7 @@ from app.models.oauth_credentials import OAuthCredentials
 from app.services.token_service import TokenService
 # other
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Union
 from fastapi import Depends
 from app.core.dependency import get_db
 from google.oauth2 import id_token
@@ -32,35 +32,23 @@ class OAuthService:
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'OAuthService':
         return cls(db)
 
-    async def authenticate_oauth_user(self, token_data: dict):
-    # Декодируем id_token и получаем информацию о пользователе
-        id_info = id_token.verify_oauth2_token(token_data["id_token"], requests.Request())
-
-        print(f"ID info: {id_info}")
-        email = id_info.get("email")
-        name = id_info.get("name")
-
-        # Другие параметры из token_data
-        access_token = token_data.get("access_token")
-        refresh_token = token_data.get("refresh_token")
-        expires_in = token_data.get("expires_in")
-
-        # Проверка существования пользователя
-        user = await self.user_repository.get_user_by_email(email)
-        is_new_user = False
-
-        if not user:
-            new_user = User(name=name, email=email, is_subscription_active=False)
-            user = await self.user_repository.create_user(new_user)
-            is_new_user = True
-
-        # Обновление OAuth данных
-        oauth_credentials = await self.oauth_repo.get_by_user_id_and_provider(user.id, "google")
+    async def update_oauth_credentials(
+        self, 
+        user_id: int, 
+        provider: str,
+        access_token: str,
+        refresh_token: str,
+        expires_in: Union[datetime, int],
+        email: str
+    ) -> None:
+        """Обновляет или создает OAuth учетные данные пользователя"""
+        oauth_credentials = await self.oauth_repo.get_by_user_id_and_provider(user_id, provider)
+        
         if not oauth_credentials:
             expires_at = expires_in if isinstance(expires_in, datetime) else datetime.utcnow() + timedelta(seconds=expires_in)
             new_credentials = OAuthCredentials(
-                user_id=user.id,
-                provider="google",
+                user_id=user_id,
+                provider=provider,
                 access_token=access_token,
                 refresh_token=refresh_token,
                 expires_at=expires_at,
@@ -68,14 +56,11 @@ class OAuthService:
             )
             await self.oauth_repo.create(new_credentials)
         else:
-            # Если expires_in — `datetime`, устанавливаем его напрямую, иначе — добавляем к текущему времени
             oauth_credentials.expires_at = expires_in if isinstance(expires_in, datetime) else datetime.utcnow() + timedelta(seconds=expires_in)
+            oauth_credentials.access_token = access_token
+            if refresh_token:  # Обновляем refresh_token только если он предоставлен
+                oauth_credentials.refresh_token = refresh_token
             await self.oauth_repo.update(oauth_credentials)
-
-        # Генерация токена для пользователя
-        token = self.token_service.create_access_token(data={"sub": str(user.id)})
-
-        return token, is_new_user
 
     async def get_oauth_credentials_by_email_and_provider(self, email: str, provider: str) -> Optional[OAuthCredentials]:
         """

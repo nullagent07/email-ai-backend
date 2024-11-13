@@ -27,22 +27,59 @@ from google_auth_oauthlib.flow import InstalledAppFlow, Flow
 from fastapi import Depends
 from app.core.dependency import get_db
 from fastapi import Request
-
+from app.repositories.user_repository import UserRepository
+from app.services.oauth_service import OAuthService
+from app.services.token_service import TokenService
 settings = get_app_settings()
 
 class GmailService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.oauth_repo = OAuthCredentialsRepository(db)
+        self.oauth_service = OAuthService(db)
         self.thread_repo = EmailThreadRepository(db)
         self.assistant_repo = AssistantRepository(db)
         self.openai_service = OpenAIService()
         self.message_repo = EmailMessageRepository(db)
+        self.user_repository = UserRepository(db)
+        self.token_service = TokenService()
         self.processed_messages = set()
 
     @classmethod
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'GmailService':
         return cls(db)
+    
+    async def authenticate_oauth_user(self, token_data: dict):
+        # Декодируем id_token и получаем информацию о пользователе
+        id_info = id_token.verify_oauth2_token(token_data["id_token"], requests.Request())
+
+        print(f"ID info: {id_info}")
+        email = id_info.get("email")
+        name = id_info.get("name")
+
+        # Проверка существования пользователя
+        user = await self.user_repository.get_user_by_email(email)
+        is_new_user = False
+
+        if not user:
+            new_user = User(name=name, email=email, is_subscription_active=False)
+            user = await self.user_repository.create_user(new_user)
+            is_new_user = True
+
+        # Обновляем OAuth данные
+        await self.oauth_service.update_oauth_credentials(
+            user_id=user.id,
+            provider="google",
+            access_token=token_data.get("access_token"),
+            refresh_token=token_data.get("refresh_token"),
+            expires_in=token_data.get("expires_in"),
+            email=email
+        )
+
+        # Генерация токена для пользователя
+        token = self.token_service.create_access_token(data={"sub": str(user.id)})
+
+        return token, is_new_user
         
     async def setup_email_monitoring(self, user_id: UUID) -> None:
         try:
