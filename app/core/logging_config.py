@@ -2,7 +2,6 @@ import logging
 
 from pythonjsonlogger import jsonlogger
 
-
 def setup_json_logging() -> None:
     """Set up JSON logging."""
     logging.getLogger().handlers.clear()  # Очистка существующих обработчиков

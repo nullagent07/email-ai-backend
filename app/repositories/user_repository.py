@@ -1,13 +1,15 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.user import User
+from uuid import UUID
 
 class UserRepository:
     def __init__(self, db_session: AsyncSession):
         self.session = db_session
 
-    async def get_user_by_id(self, user_id: int) -> User:
+    async def get_user_by_id(self, user_id: UUID) -> User:
         """Получает пользователя по идентификатору."""
+        print(f"Getting user by ID: {user_id}")
         query = select(User).where(User.id == user_id)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()

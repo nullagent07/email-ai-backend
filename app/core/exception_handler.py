@@ -8,7 +8,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 logger = logging.getLogger("assistant")
 
-
 async def custom_validation_exception_handler(
     request: Request,  # noqa: ARG001
     exc: RequestValidationError,
@@ -37,7 +36,6 @@ async def custom_validation_exception_handler(
         content=problem_detail.model_dump(exclude_none=True),
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
     )
-
 
 # Общий обработчик для HTTPException
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:  # noqa: ARG001
@@ -117,7 +115,6 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         status_code=exc.status_code,
     )
 
-
 # Обработчик для остальных необработанных исключений
 async def all_exception_handler(request: Request, exc: Exception) -> JSONResponse:  # noqa: ARG001
     """Handle all unhandled exceptions and return a JSON response.
@@ -144,7 +141,6 @@ async def all_exception_handler(request: Request, exc: Exception) -> JSONRespons
         content=problem_detail.model_dump(exclude_none=True),
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
-
 
 async def starlette_http_exception_handler(
     request: Request,  # noqa: ARG001

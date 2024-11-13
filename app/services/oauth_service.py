@@ -1,11 +1,16 @@
 # app/services/auth_service.py
 
+# sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
+# repositories
 from app.repositories.user_repository import UserRepository
 from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
+# models
 from app.models.user import User
 from app.models.oauth_credentials import OAuthCredentials
-from app.core.security import create_access_token
+# services
+from app.services.token_service import TokenService
+# other
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -13,6 +18,7 @@ class OAuthService:
     def __init__(self, db: AsyncSession):
         self.user_repository = UserRepository(db)
         self.oauth_repo = OAuthCredentialsRepository(db)
+        self.token_service = TokenService()
         self.db = db
 
     async def authenticate_oauth_user(self, token_data: dict):
@@ -58,8 +64,7 @@ class OAuthService:
             await self.oauth_repo.update(oauth_credentials)
 
         # Создаем JWT access_token
-        token_expires = timedelta(minutes=30)  # Или используйте настройки из конфигурации
-        token = create_access_token(data={"sub": str(user.id)}, expires_delta=token_expires)
+        token = self.token_service.create_access_token(data={"sub": str(user.id)})
 
         return token, is_new_user
 
