@@ -5,6 +5,8 @@ from datetime import datetime
 import asyncio
 from app.models.assistant import AssistantProfile
 import httpx
+from app.schemas.email_thread_schema import EmailThreadCreate
+
 
 settings = get_app_settings()
 
@@ -12,7 +14,18 @@ class OpenAIService:
     def __init__(self):
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
         self._assistant_id = settings.openai_base_assistant_id
+
+    @classmethod
+    def get_instance(cls) -> 'OpenAIService':
+        return cls()
         
+    async def setup_assistant(self, thread_data: EmailThreadCreate) -> str:
+        """Создает и настраивает ассистента OpenAI для пользователя."""
+        return await self.create_assistant(
+            name=f"Email Assistant for {thread_data.recipient_name}",
+            instructions=self.generate_email_assistant_instructions(thread_data)
+        )
+    
     async def create_assistant(self, name: str, instructions: str, tools: Optional[List[Dict]] = None) -> str:
         """Создает нового ассистента в OpenAI"""
         assistant = await self.client.beta.assistants.create(
@@ -22,6 +35,13 @@ class OpenAIService:
             model="gpt-4-1106-preview"
         )
         return assistant.id
+        
+    def generate_email_assistant_instructions(self, thread_data: EmailThreadCreate) -> str:
+        """Формирует инструкции для ассистента."""
+        return f"""
+        Ты - умный email ассистент, который помогает вести переписку с {thread_data.recipient_name}.
+        ...
+        """
         
     async def update_assistant(self, assistant_id: str, instructions: str) -> bool:
         """Обновляет инструкции существующего ассистента"""
@@ -88,7 +108,7 @@ class OpenAIService:
         # Создаем новый тред
         thread = await self.client.beta.threads.create()
         
-        # Запускаем ссисте��та для генерации приветственного сообщения
+        # Запускаем ссистета для генерации приветственного сообщения
         run = await self.client.beta.threads.runs.create(
             thread_id=thread.id,
             assistant_id=self._assistant_id,
@@ -270,3 +290,7 @@ class OpenAIService:
         except Exception as e:
             print(f"Error in run_thread: {str(e)}")
             return None
+
+    async def process_email(self, email_data, gmail_service):
+        # Принимаем gmail_service как параметр
+        pass

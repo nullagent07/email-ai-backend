@@ -57,7 +57,6 @@ async def google_login(response: Response):
 
     return {"authorization_url": authorization_url}
 
-
 @router.get("/google/callback")
 async def google_callback(
     request: Request,

@@ -5,7 +5,7 @@ from app.models.email_thread import EmailThread
 from typing import Optional, List
 from uuid import UUID
 
-class AssistantRepository:
+class AssistantProfileRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
         

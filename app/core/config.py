@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     google_project_id: str = "effective-reach-425812-u0"
     google_topic_id: str = "l6E-5+QaFnBk-i"
     google_service_account: str = "email-assistant@effective-reach-425812-u0.iam.gserviceaccount.com"
-
+    google_pubsub_topic_name: str = "projects/effective-reach-425812-u0/topics/l6E-5+QaFnBk-i"
     class Config:
         env_file = os.getenv("ENV_FILE", ".env")
 

@@ -21,6 +21,18 @@ class EmailThreadRepository:
             select(EmailThread).filter(EmailThread.user_id == user_id)
         )
         return result.scalars().all()
+    
+    async def has_active_thread_with_recipient_email(self, user_id: int, recipient_email: str) -> bool:
+        result = await self.db.execute(
+            select(EmailThread).filter(
+                and_(
+                    EmailThread.user_id == user_id,
+                    EmailThread.recipient_email == recipient_email,
+                    EmailThread.status == ThreadStatus.ACTIVE
+                )
+            )
+        )
+        return result.scalars().first() is not None
 
     async def create_thread(self, email_thread: EmailThread) -> EmailThread:
         self.db.add(email_thread)

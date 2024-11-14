@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.email_service import EmailService
 from app.services.gmail_service import GmailService
 from app.services.user_service import UserService
+from app.services.openai_service import OpenAIService
+from app.services.oauth_service import OAuthService
 
 # Schemas
 from app.schemas.email_message_schema import EmailMessageCreate, EmailMessageResponse
@@ -24,18 +26,24 @@ import json
 import base64
 from typing import List
 
+from app.core.config import settings
+
+
 
 router = APIRouter(prefix="/email", tags=["email"])
 
 # Эндпоинт для создания нового email-потока
-@router.post("/gmail/threads/", response_model=EmailThreadResponse)
+# @router.post("/gmail/threads/", response_model=EmailThreadResponse)
+@router.post("/gmail/threads/", status_code=status.HTTP_201_CREATED)
 async def create_thread(
     request: Request,
     thread_data: EmailThreadCreate,
-    db: AsyncSession = Depends(get_db),
     user_service: UserService = Depends(UserService.get_instance),    
+    openai_service: OpenAIService = Depends(OpenAIService.get_instance),
+    gmail_service: GmailService = Depends(GmailService.get_instance),
+    email_service: EmailService = Depends(EmailService.get_instance),
+    oauth_service: OAuthService = Depends(OAuthService.get_instance),
 ):
-    gmail_service = GmailService(db)
     try:
         # Получаем текущего пользователя
         current_user = await user_service.get_current_user(request)
@@ -44,9 +52,48 @@ async def create_thread(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Authentication required"
             )
+        
+        # Устанавливаем user_id из текущего пользователя
         thread_data.user_id = current_user.id
-        thread = await gmail_service.create_gmail_thread(thread_data)
-        return thread
+
+        # Получаем oauth_creds
+        oauth_creds = await oauth_service.get_oauth_credentials_by_user_id_and_provider(thread_data.user_id, "google")
+
+        # Проверяем, что oauth_creds есть
+        if not oauth_creds:
+            raise ValueError("Gmail credentials not found")
+        
+        # Создание ассистента
+        assistant_id = await openai_service.setup_assistant(thread_data)
+
+        # Создание тред в OpenAI
+        openai_thread_id = await openai_service.create_thread()
+        
+        # Добавляем начальное сообщение в тред
+        await openai_service.add_message_to_thread(
+            thread_id=openai_thread_id,
+            content=f"Это начало email переписки с {thread_data.recipient_name}..."
+        )
+
+        # Запускаем тред
+        initial_message = await openai_service.run_thread(
+            thread_id=openai_thread_id,
+            assistant_id=assistant_id,
+            instructions="Сгенерируй приветственное письмо..."
+        )
+
+        # Формируем тело email
+        message_body = email_service.compose_email_body(oauth_creds.email, thread_data.recipient_email, initial_message)
+
+        # Создаем gmail сервис
+        gmail = await gmail_service.create_gmail_service(oauth_creds)
+
+        # Отправляем email
+        await gmail_service.send_email(gmail, message_body)
+        
+        # Сохранение данных в базе данных
+        return await openai_service.save_assistant_and_thread(assistant_id, openai_thread_id, thread_data)
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))    
 

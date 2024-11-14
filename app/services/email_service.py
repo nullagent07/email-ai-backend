@@ -9,7 +9,7 @@ from app.schemas.email_message_schema import EmailMessageCreate
 from app.schemas.email_thread_schema import EmailThreadCreate, EmailThreadUpdate
 from typing import Optional
 from app.services.openai_service import OpenAIService
-from app.repositories.assistant_repository import AssistantRepository
+from app.repositories.assistant_profile_repository import AssistantProfileRepository
 from app.models.assistant import AssistantProfile
 
 from app.core.config import settings
@@ -18,16 +18,26 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from fastapi import HTTPException, status
 from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
-
+from fastapi import Depends
+from app.core.dependency import get_db
+from uuid import UUID
 class EmailService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.message_repo = EmailMessageRepository(db)
         self.thread_repo = EmailThreadRepository(db)
-        self.assistant_repo = AssistantRepository(db)
+        self.assistant_repo = AssistantProfileRepository(db)
         self.oauth_repo = OAuthCredentialsRepository(db)
         self.openai_service = OpenAIService()
 
+    @classmethod
+    def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'EmailService':
+        return cls(db)
+    
+    async def create_thread(self, new_thread: EmailThread) -> EmailThread:
+        """Создает новый email-тред в базе данных."""
+        return await self.thread_repo.create_thread(new_thread)
+    
     # Методы для EmailThread
     async def get_user_threads(self, user_id: int) -> List[EmailThread]:
         return await self.thread_repo.get_threads_by_user_id(user_id)
@@ -41,6 +51,18 @@ class EmailService:
 
     async def get_threads_by_status(self, user_id: int, status: ThreadStatus) -> List[EmailThread]:
         return await self.thread_repo.get_threads_by_status(user_id, status)
+
+    def compose_email_body(self, sender_email: str, recipient_email: str, content: str) -> dict:
+        """Формирует тело email для отправки через Gmail API."""
+        return {
+            'raw': base64.urlsafe_b64encode(
+                f"From: {sender_email}\r\nTo: {recipient_email}\r\nSubject: New conversation\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{content}".encode()
+            ).decode()
+        }
+
+    async def has_active_thread_with_recipient_email(self, user_id: UUID, recipient_email: str) -> bool:
+        return await self.thread_repo.has_active_thread_with_recipient_email(user_id, recipient_email)
+
 
     # Методы для EmailMessage
     async def send_email_message(self, message_data: EmailMessageCreate) -> EmailMessage:
@@ -79,3 +101,5 @@ class EmailService:
         await self.db.commit()
         await self.db.refresh(message)
         return message
+
+    
