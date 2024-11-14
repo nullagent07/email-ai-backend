@@ -56,6 +56,7 @@ async def gmail_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
+    print(request)
     return {"status": "success", "message": "Webhook received"}
     try:
         for header, value in request.headers.items():

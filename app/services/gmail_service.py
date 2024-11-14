@@ -51,7 +51,7 @@ class GmailService:
     
     async def setup_email_monitoring(self, user_id: UUID) -> None:
         try:
-            oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(user_id, "google")
+            oauth_creds = await self.oauth_service.get_oauth_credentials_by_user_id_and_provider(user_id, "google")
             if not oauth_creds:
                 raise ValueError("Gmail credentials not found")
 
@@ -89,7 +89,6 @@ class GmailService:
                 detail=f"Failed to setup email monitoring: {str(e)}"
             )
     
-
     async def create_gmail_service(self, email_address: str) -> Any:
         """Создает и возвращает сервис Gmail API для пользователя."""
         oauth_creds = await self.oauth_repo.get_by_email_and_provider(email_address, "google")
@@ -105,7 +104,8 @@ class GmailService:
         return build('gmail', 'v1', credentials=creds)
 
     async def create_gmail_thread(self, thread_data: EmailThreadCreate) -> EmailThread:
-        oauth_creds = await self.oauth_repo.get_by_user_id_and_provider(thread_data.user_id, "google")
+        oauth_creds = await self.oauth_service.get_oauth_credentials_by_user_id_and_provider(thread_data.user_id, "google")
+
         if not oauth_creds:
             raise ValueError("Gmail credentials not found")
 

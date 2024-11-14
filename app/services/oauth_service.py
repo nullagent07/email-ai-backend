@@ -31,6 +31,10 @@ class OAuthService:
     @classmethod
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'OAuthService':
         return cls(db)
+    
+    async def get_oauth_credentials_by_user_id_and_provider(self, user_id: int, provider: str) -> Optional[OAuthCredentials]:
+        """Получает OAuth credentials по user_id и provider"""
+        return await self.oauth_repo.get_by_user_id_and_provider(user_id, provider)
 
     async def update_oauth_credentials(
         self, 
@@ -42,8 +46,8 @@ class OAuthService:
         email: str
     ) -> None:
         """Обновляет или создает OAuth учетные данные пользователя"""
-        oauth_credentials = await self.oauth_repo.get_by_user_id_and_provider(user_id, provider)
-        
+        oauth_credentials = await self.get_oauth_credentials_by_user_id_and_provider(user_id, provider)
+
         if not oauth_credentials:
             expires_at = expires_in if isinstance(expires_in, datetime) else datetime.utcnow() + timedelta(seconds=expires_in)
             new_credentials = OAuthCredentials(
