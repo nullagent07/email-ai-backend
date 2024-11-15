@@ -103,7 +103,8 @@ async def create_thread(
 async def gmail_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    gmail_service: GmailService = Depends(GmailService.get_instance)
+    gmail_service: GmailService = Depends(GmailService.get_instance),
+    oauth_service: OAuthService = Depends(OAuthService.get_instance),
 ):  
     try:
         # for header, value in request.headers.items():
@@ -124,74 +125,74 @@ async def gmail_webhook(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Недействительный токен авторизации"
             )
-
-        
-        return {"status": "success", "message": "Webhook received"}
     
         # Получаем данные запроса от Pub/Sub
         pubsub_message = await request.json()
         print("\n=== Получено уведомление от Pub/Sub ===")
         print("Сырые данные:", json.dumps(pubsub_message, indent=2))
         
+
         # Декодируем данные сообщения
         message_data = pubsub_message['message']['data']
         decoded_data = base64.b64decode(message_data).decode('utf-8')
         email_data = json.loads(decoded_data)
+        print("\n=== Email data ===")
+        print(f"Email data: {email_data}")
         
+        # Получаем email и historyId
         email_address = email_data.get('emailAddress')
         history_id = email_data['historyId']
-            
-        gmail = await gmail_service.create_gmail_service(email_address)
+        message_id = pubsub_message['message']['message_id']
+    
+        print(f"message_id: {message_id}")
         
-        try:
-            # Получаем историю изменений
-            history_list = gmail.users().history().list(
-                userId='me',
-                startHistoryId=history_id,
-                historyTypes=['messageAdded']  # Только добавление новых сообщений
-            ).execute()
-            
-            print("\nПолученная история:", json.dumps(history_list, indent=2))
-            
-            if 'history' not in history_list:
-                print("История пуста")
-                return {"status": "success", "message": "No messages to process"}
+        # Получаем oauth_creds
+        oauth_creds = await oauth_service.get_oauth_credentials_by_email_and_provider(email_address, "google")
 
-            # Проверяем каждую запись в истории
-            for record in history_list['history']:
-                if 'messagesAdded' in record:
-                    for message_added in record['messagesAdded']:
-                        # Проверяем метки прямо в уведомлении
-                        labels = message_added['message'].get('labelIds', [])
-                        
-                        # Изменяем условие для обработки только исходящих сообщений
-                        if 'SENT' not in labels:
-                            print(f"Пропускаем уведомление (не исходящее сообщение), метки: {labels}")
-                            return {"status": "success", "message": "Не исходящее сообщение"}
-                        
-                        # Если дошли сюда - это исходящее сообщение, получаем его содержимое
-                        message_id = message_added['message']['id']
-                        message = gmail.users().messages().get(
-                            userId='me',
-                            id=message_id,
-                            format='full'
-                        ).execute()
-                        
-                        # Выводим информацию об исходящем сообщении
-                        headers = {h['name']: h['value'] for h in message['payload'].get('headers', [])}
-                        print("\n=== Новое исходящее сообщение ===")
-                        print(f"ID: {message_id}")
-                        print(f"Кому: {headers.get('To', 'Неизвестно')}")
-                        print(f"Тема: {headers.get('Subject', 'Без темы')}")
-                        print(f"Метки: {labels}")
-                        
-                        # Здесь можно добавить дополнительную обработку исходящего сообщения
-                        
-            return {"status": "success", "message": "История обработана"}
-            
-        except Exception as e:
-            print(f"Ошибка при получении истории: {str(e)}")
-            return {"status": "error", "message": str(e)}
+        if not oauth_creds:
+            print(f"Не найдены учетные данные для {email_address}")
+            return {
+                "status": "success",
+                "message": "Gmail credentials not found"
+            }
+        
+        # Создаем gmail сервис
+        gmail = await gmail_service.create_gmail_service(oauth_creds)
+        
+        # Получаем список сообщений
+        result = gmail.users().messages().list(userId="me").execute()
+
+        # # Получаем последний ID сообщения
+        # last_msg_id = result['messages'][-1]['id']
+
+        results = gmail.users().messages().list(userId='me', maxResults=10).execute()
+        messages = results.get('messages', [])
+
+
+        for msg in messages:
+            msg_id = msg['id']
+            message = gmail.users().messages().get(userId='me', id=msg_id, format='full').execute()
+            payload = message.get('payload', {})
+            headers = payload.get('headers', [])
+            parts = payload.get('parts', [])
+            data = None
+
+            if 'data' in payload.get('body', {}):
+                data = payload['body']['data']
+            else:
+                for part in parts:
+                    if part.get('mimeType') == 'text/plain' and 'data' in part.get('body', {}):
+                        data = part['body']['data']
+                        break
+
+            if data:
+                decoded_data = base64.urlsafe_b64decode(data).decode('utf-8')
+                print(f"Message ID: {msg_id}")
+                print(f"Body: {decoded_data}")
+            else:
+                print(f"Message ID: {msg_id} has no body.")
+
+        return {"status": "success", "message": "History received"}
 
     except Exception as e:
         print(f"Ошибка при обработке уведомления: {str(e)}")

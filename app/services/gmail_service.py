@@ -32,6 +32,8 @@ import json
 import httpx
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from google.auth.transport.requests import Request
+
 from google_auth_oauthlib.flow import InstalledAppFlow, Flow
 
 from app.core.dependency import get_db
@@ -110,10 +112,7 @@ class GmailService:
         try:
             # Убираем префикс "Bearer"
             token = token.replace("Bearer ", "")
-
-            print(f"Token: {token}")
             
-            return {"status": "success", "message": "Webhook received"}
             # Создаем правильный объект Request
             request = Request()
             
