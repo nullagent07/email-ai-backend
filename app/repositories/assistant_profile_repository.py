@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from app.models.assistant import AssistantProfile
+from app.models.assistant_profile import AssistantProfile
 from app.models.email_thread import EmailThread
 from typing import Optional, List
 from uuid import UUID

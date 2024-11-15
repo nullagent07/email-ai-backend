@@ -1,20 +1,30 @@
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google.auth.exceptions import RefreshError
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 import base64
+
 from app.services.openai_service import OpenAIService
+from app.services.oauth_service import OAuthService
+from app.services.token_service import TokenService
+
 from app.repositories.assistant_profile_repository import AssistantProfileRepository
-from app.models.assistant import AssistantProfile
+from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
+from app.repositories.email_thread_repository import EmailThreadRepository
+from app.repositories.user_repository import UserRepository
+from app.repositories.email_message_repository import EmailMessageRepository
+
+
+from app.models.assistant_profile import AssistantProfile
 from app.models.email_thread import EmailThread, ThreadStatus
 from app.models.user import User
-from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
-from app.core.config import get_app_settings
-from app.repositories.email_thread_repository import EmailThreadRepository
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.email_thread_schema import EmailThreadCreate
+from app.models.oauth_credentials import OAuthCredentials
 from app.models.email_message import EmailMessage, MessageType
-from app.repositories.email_message_repository import EmailMessageRepository
+
+from app.schemas.email_thread_schema import EmailThreadCreate
+
+
 from uuid import UUID
 import email.utils
 from typing import Any
@@ -23,13 +33,10 @@ import httpx
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from google_auth_oauthlib.flow import InstalledAppFlow, Flow
-from fastapi import Depends
+
 from app.core.dependency import get_db
-from fastapi import Request
-from app.repositories.user_repository import UserRepository
-from app.services.oauth_service import OAuthService
-from app.services.token_service import TokenService
-from app.models.oauth_credentials import OAuthCredentials
+
+from app.core.config import get_app_settings
 
 settings = get_app_settings()
 
@@ -47,6 +54,36 @@ class GmailService:
     @classmethod
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'GmailService':
         return cls(db)
+    
+    async def create_oauth_flow(self, state_token: str = None) -> tuple[str, Flow]:
+        """Создает OAuth flow и генерирует URL для авторизации"""
+        
+        # Создаем конфигурацию клиента
+        client_config = {
+            "web": {
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [settings.google_redirect_uri]
+            }
+        }
+
+        # Инициализируем flow
+        flow = Flow.from_client_config(
+            client_config,
+            scopes=settings.google_extended_scope,
+            redirect_uri=settings.google_redirect_uri
+        )
+
+        # Генерируем URL для авторизации
+        authorization_url, _ = flow.authorization_url(
+            access_type="offline",  # Для получения refresh_token
+            state=state_token,
+            prompt="consent"  # Всегда показывать окно согласия
+        )
+
+        return authorization_url, flow
     
     async def create_gmail_service(self, oauth_creds: OAuthCredentials) -> Any:
         """Создает и возвращает сервис Gmail API для пользователя."""

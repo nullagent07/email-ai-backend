@@ -10,7 +10,7 @@ from app.schemas.email_thread_schema import EmailThreadCreate, EmailThreadUpdate
 from typing import Optional
 from app.services.openai_service import OpenAIService
 from app.repositories.assistant_profile_repository import AssistantProfileRepository
-from app.models.assistant import AssistantProfile
+from app.models.assistant_profile import AssistantProfile
 
 from app.core.config import settings
 import base64

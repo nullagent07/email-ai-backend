@@ -1,4 +1,4 @@
-from app.models.assistant import AssistantProfile
+from app.models.assistant_profile import AssistantProfile
 from app.schemas.email_thread_schema import EmailThreadCreate
 from app.repositories.email_thread_repository import EmailThreadRepository
 from app.repositories.assistant_profile_repository import AssistantProfileRepository

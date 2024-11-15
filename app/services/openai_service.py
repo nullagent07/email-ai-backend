@@ -3,7 +3,7 @@ from app.core.config import get_app_settings
 from typing import List, Optional, Tuple, Dict
 from datetime import datetime
 import asyncio
-from app.models.assistant import AssistantProfile
+from app.models.assistant_profile import AssistantProfile
 import httpx
 from app.schemas.email_thread_schema import EmailThreadCreate
 
