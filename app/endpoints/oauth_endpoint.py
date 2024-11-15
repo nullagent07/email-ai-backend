@@ -9,6 +9,12 @@ from app.core.config import get_app_settings
 import secrets
 from app.services.gmail_service import GmailService
 from google_auth_oauthlib.flow import Flow
+from app.services.token_service import TokenService
+from google.oauth2 import id_token
+import requests
+from app.services.user_service import UserService
+from google.auth.transport.requests import Request as GoogleRequest  # Переименовываем импорт
+from fastapi import Request
 
 
 
@@ -52,12 +58,12 @@ async def google_login(
 async def google_callback(
     request: Request,
     response: Response,
-    db: AsyncSession = Depends(get_db),
     code: str = None,
     state: str = None,
     error: str = None,
     oauth_service: OAuthService = Depends(OAuthService.get_instance),
     gmail_service: GmailService = Depends(GmailService.get_instance),
+    user_service: UserService = Depends(UserService.get_instance)
 ):
     """Обрабатывает callback от Google после авторизации и редиректит на фронтенд"""
     # Обрабатываем ошибки авторизации от Google
@@ -84,8 +90,34 @@ async def google_callback(
         "id_token": credentials.id_token,
     }
 
-    # Аутентифицируем или регистрируем пользователя
-    access_token, is_new_user = await gmail_service.authenticate_oauth_user(token_data)
+    # Декодируем id_token и получаем информацию о пользователе
+    id_info = id_token.verify_oauth2_token(token_data["id_token"], GoogleRequest())
+
+    email = id_info.get("email")
+    name = id_info.get("name")
+
+    # Проверка существования пользователя
+    user = await user_service.get_user_by_email(email)
+    is_new_user = False
+
+    # Регистрируем пользователя, если он не существует
+    if not user:
+        user = await user_service.register_user(name=name, email=email, is_subscription_active=False)
+        is_new_user = True
+
+    # Обновляем OAuth данные
+    await oauth_service.update_oauth_credentials(
+        user_id=user.id,
+        provider="google",
+        access_token=token_data.get("access_token"),
+        refresh_token=token_data.get("refresh_token"),
+        expires_in=token_data.get("expires_in"),
+        email=email,
+        provider_data={'watch': 'False'}
+    )
+
+    # Генерация токена для пользователя
+    access_token = gmail_service.token_service.create_access_token(data={"sub": str(user.id)})
     
     # Формируем URL для редиректа с параметрами
     redirect_params = {

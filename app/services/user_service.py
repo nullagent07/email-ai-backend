@@ -36,19 +36,20 @@ class UserService:
         """Фабричный метод для создания экземпляра UserService"""
         return cls(db)
 
-    async def register_user(self, user_create: UserCreate) -> User:
+    async def register_user(self, name: str, email: str, is_subscription_active: bool = False, password: str = None) -> User:
         # Проверяем, существует ли пользователь с таким email
-        existing_user = await self.user_repository.get_user_by_email(user_create.email)
+        existing_user = await self.user_repository.get_user_by_email(email)
         if existing_user:
             raise ValueError("User already exists")
 
         # Хэшируем пароль
-        password_hash = pwd_context.hash(user_create.password)
+        password_hash = pwd_context.hash(password) if password else None
 
         new_user = User(
-            name=user_create.name,
-            email=user_create.email,
-            password_hash=password_hash
+            name=name,
+            email=email,
+            password_hash=password_hash,
+            is_subscription_active=is_subscription_active
         )
         return await self.user_repository.create_user(new_user)
 
@@ -84,3 +85,5 @@ class UserService:
         except Exception:
             return None
 
+    async def get_user_by_email(self, email: str) -> Optional[User]:
+        return await self.user_repository.get_user_by_email(email)

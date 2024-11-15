@@ -104,7 +104,6 @@ class GmailService:
                 detail=f"Failed to send email: {str(e)}"
             )
 
-    # Обновляем функцию проверки токена вебхука
     async def verify_google_webhook_token(self, token: str) -> bool:
         """
         Проверяет JWT токен Google
@@ -139,36 +138,75 @@ class GmailService:
         except Exception as e:
             print(f"Ошибка при проверке токена: {str(e)}")
             return False
-        
-    async def authenticate_oauth_user(self, token_data: dict):
-        # Декодируем id_token и получаем информацию о пользователе
-        id_info = id_token.verify_oauth2_token(token_data["id_token"], requests.Request())
-
-        email = id_info.get("email")
-        name = id_info.get("name")
-
-        # Проверка существования пользователя
-        user = await self.user_repository.get_user_by_email(email)
-        is_new_user = False
-
-        if not user:
-            new_user = User(name=name, email=email, is_subscription_active=False)
-            user = await self.user_repository.create_user(new_user)
-            is_new_user = True
-
-        # Обновляем OAuth данные
-        await self.oauth_service.update_oauth_credentials(
-            user_id=user.id,
-            provider="google",
-            access_token=token_data.get("access_token"),
-            refresh_token=token_data.get("refresh_token"),
-            expires_in=token_data.get("expires_in"),
-            email=email,
-            provider_data={'watch': 'False'}
-        )
-
-        # Генерация токена для пользователя
-        token = self.token_service.create_access_token(data={"sub": str(user.id)})
-
-        return token, is_new_user
     
+    async def extract_user_email_from_pubsub_request(self, request: Request):
+        # Получаем данные запроса от Pub/Sub
+        pubsub_message = await request.json()
+        
+        # Декодируем данные сообщения
+        message_data = pubsub_message['message']['data']
+        decoded_data = base64.b64decode(message_data).decode('utf-8')
+        email_data = json.loads(decoded_data)
+        
+        return email_data.get('emailAddress')
+
+    async def get_last_message(self, oauth_creds: OAuthCredentials, user_email: str):
+        """Получает последнее сообщение"""
+        # Создаем gmail сервис
+        gmail = await self.create_gmail_service(oauth_creds)
+
+        # Получаем последнее сообщение
+        results = gmail.users().messages().list(userId='me', maxResults=1).execute()
+
+        # Формируем массив сообщений
+        messages = results.get('messages', [])
+
+        # Получаем последнее сообщение
+        last_msg_id = messages[0]['id']  
+        message = gmail.users().messages().get(userId='me', id=last_msg_id, format='full').execute()
+
+        # Получаем payload
+        payload = message.get('payload', {})
+
+        # Получаем заголовки
+        headers = payload.get('headers', [])
+
+        # Получаем части
+        parts = payload.get('parts', [])
+
+        # Создаем переменную для данных
+        data = None
+
+        # Извлекаем значения заголовков 'From' и 'To'
+        for header in headers:
+            if header['name'] == 'From':
+                from_address = header['value']
+            elif header['name'] == 'To':
+                to_address = header['value']
+
+        # Определяем тип сообщения
+        if from_address and user_email in from_address:
+            print("Это исходящее сообщение.")
+            return {"status": "success", "message": "Outgoing message"}
+        elif to_address and user_email in to_address:
+            print("Это входящее сообщение.")
+        else:
+            print("Невозможно определить тип сообщения.")
+            return {"status": "success", "message": "Outgoing message"}
+
+        # Получаем данные
+        if 'data' in payload.get('body', {}):
+            data = payload['body']['data']
+        else:
+            for part in parts:
+                if part.get('mimeType') == 'text/plain' and 'data' in part.get('body', {}):
+                    data = part['body']['data']
+                break
+
+        # Декодируем данные
+        if data:
+            decoded_data = base64.urlsafe_b64decode(data).decode('utf-8')
+            print(f"Message ID: {last_msg_id}")
+            print(f"Body: {decoded_data}")
+        else:
+            print(f"Message ID: {last_msg_id} has no body.")

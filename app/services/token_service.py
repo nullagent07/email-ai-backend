@@ -1,12 +1,18 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from app.core.config import settings
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
 
 class TokenService:
     def __init__(self):
         self.secret_key = settings.secret_key
         self.algorithm = settings.algorithm
         self.access_token_expires_minutes = settings.access_token_expire_minutes
+
+    @classmethod
+    def get_instance(cls) -> 'TokenService':
+        return cls()
 
     def create_access_token(self, data: dict ):
         to_encode = data.copy()
