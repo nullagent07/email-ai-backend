@@ -36,8 +36,16 @@ async def google_login(
         max_age=600,  # 10 минут
         path="/"
     )
+    
+    # Создаем OAuth flow
+    flow = await gmail_service.create_oauth_flow()
 
-    authorization_url, _ = await gmail_service.create_oauth_flow(state_token)
+    # Генерируем URL для авторизации
+    authorization_url, _ = flow.authorization_url(
+        access_type="offline",  # Для получения refresh_token
+        state=state_token,
+        prompt="consent"  # Всегда показывать окно согласия
+    )
 
     return {"authorization_url": authorization_url}
 
@@ -53,7 +61,6 @@ async def google_callback(
     gmail_service: GmailService = Depends(GmailService.get_instance),
 ):
     """Обрабатывает callback от Google после авторизации и редиректит на фронтенд"""
-    
     # Обрабатываем ошибки авторизации от Google
     if error:
         redirect_url = f"{settings.frontend_url}/auth/callback?error={error}&state={state}"
@@ -63,21 +70,8 @@ async def google_callback(
     if not (oauth_state := request.cookies.get("oauth_state")) or oauth_state != state:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid state token")
 
-    # Настраиваем OAuth2 flow
-    client_config = {
-        "web": {
-            "client_id": settings.google_client_id,
-            "client_secret": settings.google_client_secret,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [settings.google_redirect_uri]
-        }
-    }
-    flow = Flow.from_client_config(
-        client_config,
-        scopes=settings.google_extended_scope,
-        redirect_uri=settings.google_redirect_uri
-    )
+    # Создаем OAuth flow
+    flow = await gmail_service.create_oauth_flow()
 
     # Обмениваем код авторизации на токен
     flow.fetch_token(code=code)

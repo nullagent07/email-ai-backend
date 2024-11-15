@@ -55,7 +55,7 @@ class GmailService:
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'GmailService':
         return cls(db)
     
-    async def create_oauth_flow(self, state_token: str = None) -> tuple[str, Flow]:
+    async def create_oauth_flow(self) -> tuple[str, Flow]:
         """Создает OAuth flow и генерирует URL для авторизации"""
         
         # Создаем конфигурацию клиента
@@ -76,14 +76,7 @@ class GmailService:
             redirect_uri=settings.google_redirect_uri
         )
 
-        # Генерируем URL для авторизации
-        authorization_url, _ = flow.authorization_url(
-            access_type="offline",  # Для получения refresh_token
-            state=state_token,
-            prompt="consent"  # Всегда показывать окно согласия
-        )
-
-        return authorization_url, flow
+        return flow
     
     async def create_gmail_service(self, oauth_creds: OAuthCredentials) -> Any:
         """Создает и возвращает сервис Gmail API для пользователя."""
@@ -109,27 +102,6 @@ class GmailService:
                 detail=f"Failed to send email: {str(e)}"
             )
 
-    # async def _save_assistant_and_thread(self, assistant_id: str, openai_thread_id: str, thread_data: EmailThreadCreate) -> EmailThread:
-    #     """Сохраняет профиль ассистента и email-тред в базе данных."""
-    #     assistant_profile = AssistantProfile(
-    #         id=assistant_id,
-    #         user_id=thread_data.user_id,
-    #         name=thread_data.recipient_name,
-    #         description=thread_data.assistant
-    #     )
-    #     await self.assistant_repo.create_assistant_profile(assistant_profile)
-        
-    #     new_thread = EmailThread(
-    #         id=openai_thread_id,
-    #         user_id=thread_data.user_id,
-    #         thread_name=thread_data.recipient_name,
-    #         description=thread_data.assistant,
-    #         status=ThreadStatus.ACTIVE,
-    #         assistant_id=assistant_id,
-    #         recipient_email=thread_data.recipient_email,
-    #         recipient_name=thread_data.recipient_name
-    #     )
-    #     return await self.thread_repo.create_thread(new_thread)
     # Обновляем функцию проверки токена вебхука
     async def verify_google_webhook_token(self, token: str) -> bool:
         """
