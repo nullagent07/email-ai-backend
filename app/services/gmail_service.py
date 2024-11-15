@@ -26,7 +26,7 @@ from app.schemas.email_thread_schema import EmailThreadCreate
 
 
 from uuid import UUID
-import email.utils
+
 from typing import Any
 import json
 import httpx
@@ -110,7 +110,10 @@ class GmailService:
         try:
             # Убираем префикс "Bearer"
             token = token.replace("Bearer ", "")
+
+            print(f"Token: {token}")
             
+            return {"status": "success", "message": "Webhook received"}
             # Создаем правильный объект Request
             request = Request()
             

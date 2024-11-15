@@ -44,9 +44,6 @@ my_project/
 │   │   ├── __init__.py
 │   ├── schemas/
 │   │   ├── __init__.py
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   └── auth.py
 │   └── config.py
 │
 ├── alembic/
@@ -70,7 +67,6 @@ my_project/
 - **app/repositories/**: Содержит операции с базой данных.
 - **app/models/**: Содержит модели базы данных.
 - **app/schemas/**: Содержит Pydantic схемы для валидации данных.
-- **app/utils/**: Содержит вспомогательные функции.
   - **auth.py**: Функции для аутентификации.
 - **app/core/config.py**: Управление настройками приложения.
 - **alembic/**: Содержит файлы для миграций базы данных.
@@ -193,10 +189,6 @@ endLine: 85
 - Создается/обновляется пользователь в БД
 - Устанавливается JWT токен в cookie
 
-### 3. Верификация токенов
-python:app/utils/oauth_verification.py
-startLine: 6
-endLine: 62
 
 Процесс проверки включает:
 - Обмен кода на токены через Google API
@@ -227,11 +219,6 @@ endLine: 21
 - `GoogleAuthRequest`: Валидация входящего запроса
 - `OAuthUser`: Создание нового пользователя
 - `OAuthCredentials`: Сохранение OAuth токенов
-
-## Интеграция с Gmail API
-python:app/utils/gmail_auth.py
-startLine: 11
-endLine: 90
 
 
 Включает:

@@ -21,6 +21,7 @@ from app.repositories.oauth_credentials_repository import OAuthCredentialsReposi
 from fastapi import Depends
 from app.core.dependency import get_db
 from uuid import UUID
+
 class EmailService:
     def __init__(self, db: AsyncSession):
         self.db = db

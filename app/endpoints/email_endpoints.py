@@ -10,7 +10,7 @@ from app.services.gmail_service import GmailService
 from app.services.user_service import UserService
 from app.services.openai_service import OpenAIService
 from app.services.oauth_service import OAuthService
-
+from app.services.assistant_profile_service import AssistantProfileService
 # Schemas
 from app.schemas.email_message_schema import EmailMessageCreate, EmailMessageResponse
 from app.schemas.email_thread_schema import EmailThreadCreate, EmailThreadResponse, ThreadStatus
@@ -18,17 +18,12 @@ from app.schemas.email_thread_schema import EmailThreadCreate, EmailThreadRespon
 # core
 from app.core.dependency import get_db
 
-# utils
-from app.utils.oauth_verification import verify_google_webhook_token
-
 # other
 import json
 import base64
 from typing import List
 
 from app.core.config import settings
-
-
 
 router = APIRouter(prefix="/email", tags=["email"])
 
@@ -43,6 +38,7 @@ async def create_thread(
     gmail_service: GmailService = Depends(GmailService.get_instance),
     email_service: EmailService = Depends(EmailService.get_instance),
     oauth_service: OAuthService = Depends(OAuthService.get_instance),
+    assistant_service: AssistantProfileService = Depends(AssistantProfileService.get_instance),
 ):
     try:
         # Получаем текущего пользователя
@@ -62,7 +58,7 @@ async def create_thread(
         # Проверяем, что oauth_creds есть
         if not oauth_creds:
             raise ValueError("Gmail credentials not found")
-        
+
         # Создание ассистента
         assistant_id = await openai_service.setup_assistant(thread_data)
 
@@ -91,8 +87,13 @@ async def create_thread(
         # Отправляем email
         await gmail_service.send_email(gmail, message_body)
         
-        # Сохранение данных в базе данных
-        return await openai_service.save_assistant_and_thread(assistant_id, openai_thread_id, thread_data)
+        # Сохранение данных thread
+        await email_service.create_thread(thread_data)
+
+        # Сохраняем assistant
+        await assistant_service.create_assistant_profile(assistant_id, thread_data)
+
+        return {"status": "success", "message": "Thread created successfully"}
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))    
@@ -101,29 +102,32 @@ async def create_thread(
 @router.post("/gmail/webhook")
 async def gmail_webhook(
     request: Request,
-    db: AsyncSession = Depends(get_db)
-):
-    print(request)
-    return {"status": "success", "message": "Webhook received"}
+    db: AsyncSession = Depends(get_db),
+    gmail_service: GmailService = Depends(GmailService.get_instance)
+):  
     try:
-        for header, value in request.headers.items():
-            print(f"{header}: {value}")
+        # for header, value in request.headers.items():
+        #     print(f"{header}: {value}")
         
+        # Получаем заголовок Authorization
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Отсутствует или неверный заголовок Authorization"
             )
-            
+
         # Проверяем токен
-        is_valid = await verify_google_webhook_token(auth_header)
+        is_valid = await gmail_service.verify_google_webhook_token(auth_header)
         if not is_valid:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Недействительный токен авторизации"
             )
 
+        
+        return {"status": "success", "message": "Webhook received"}
+    
         # Получаем данные запроса от Pub/Sub
         pubsub_message = await request.json()
         print("\n=== Получено уведомление от Pub/Sub ===")
@@ -137,7 +141,6 @@ async def gmail_webhook(
         email_address = email_data.get('emailAddress')
         history_id = email_data['historyId']
             
-        gmail_service = GmailService(db)
         gmail = await gmail_service.create_gmail_service(email_address)
         
         try:

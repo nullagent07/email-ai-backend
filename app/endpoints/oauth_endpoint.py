@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.oauth_service import OAuthService
 from app.core.dependency import get_db
 from app.core.config import get_app_settings
-# from app.utils.oauth_verification import verify_oauth_code
 import secrets
 from app.services.gmail_service import GmailService
 from google_auth_oauthlib.flow import Flow
