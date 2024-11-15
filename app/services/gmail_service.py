@@ -133,9 +133,7 @@ class GmailService:
             if 'exp' not in decoded_token:
                 print("В токене отсутствует время истечения")
                 return False
-                
-            print("Токен успешно проверен")
-            print(f"Decoded token: {decoded_token}")
+            
             return True
             
         except Exception as e:

@@ -107,9 +107,6 @@ async def gmail_webhook(
     oauth_service: OAuthService = Depends(OAuthService.get_instance),
 ):  
     try:
-        # for header, value in request.headers.items():
-        #     print(f"{header}: {value}")
-        
         # Получаем заголовок Authorization
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):
@@ -128,29 +125,20 @@ async def gmail_webhook(
     
         # Получаем данные запроса от Pub/Sub
         pubsub_message = await request.json()
-        print("\n=== Получено уведомление от Pub/Sub ===")
-        print("Сырые данные:", json.dumps(pubsub_message, indent=2))
         
-
         # Декодируем данные сообщения
         message_data = pubsub_message['message']['data']
         decoded_data = base64.b64decode(message_data).decode('utf-8')
         email_data = json.loads(decoded_data)
-        print("\n=== Email data ===")
-        print(f"Email data: {email_data}")
         
         # Получаем email и historyId
-        email_address = email_data.get('emailAddress')
-        history_id = email_data['historyId']
-        message_id = pubsub_message['message']['message_id']
-    
-        print(f"message_id: {message_id}")
+        user_email = email_data.get('emailAddress')
         
         # Получаем oauth_creds
-        oauth_creds = await oauth_service.get_oauth_credentials_by_email_and_provider(email_address, "google")
+        oauth_creds = await oauth_service.get_oauth_credentials_by_email_and_provider(user_email, "google")
 
         if not oauth_creds:
-            print(f"Не найдены учетные данные для {email_address}")
+            print(f"Не найдены учетные данные для {user_email}")
             return {
                 "status": "success",
                 "message": "Gmail credentials not found"
@@ -158,39 +146,51 @@ async def gmail_webhook(
         
         # Создаем gmail сервис
         gmail = await gmail_service.create_gmail_service(oauth_creds)
-        
-        # Получаем список сообщений
-        result = gmail.users().messages().list(userId="me").execute()
 
-        # # Получаем последний ID сообщения
-        # last_msg_id = result['messages'][-1]['id']
-
-        results = gmail.users().messages().list(userId='me', maxResults=10).execute()
+        results = gmail.users().messages().list(userId='me', maxResults=1).execute()
         messages = results.get('messages', [])
 
 
-        for msg in messages:
-            msg_id = msg['id']
-            message = gmail.users().messages().get(userId='me', id=msg_id, format='full').execute()
-            payload = message.get('payload', {})
-            headers = payload.get('headers', [])
-            parts = payload.get('parts', [])
-            data = None
+        last_msg_id = messages[0]['id']  
+        message = gmail.users().messages().get(userId='me', id=last_msg_id, format='full').execute()
+        payload = message.get('payload', {})
+        headers = payload.get('headers', [])
+        parts = payload.get('parts', [])
+        data = None
 
-            if 'data' in payload.get('body', {}):
-                data = payload['body']['data']
-            else:
-                for part in parts:
-                    if part.get('mimeType') == 'text/plain' and 'data' in part.get('body', {}):
-                        data = part['body']['data']
-                        break
+        # Извлекаем значения заголовков 'From' и 'To'
+        for header in headers:
+            if header['name'] == 'From':
+                from_address = header['value']
+            elif header['name'] == 'To':
+                to_address = header['value']
 
-            if data:
-                decoded_data = base64.urlsafe_b64decode(data).decode('utf-8')
-                print(f"Message ID: {msg_id}")
-                print(f"Body: {decoded_data}")
-            else:
-                print(f"Message ID: {msg_id} has no body.")
+        # Определяем тип сообщения
+        if from_address and user_email in from_address:
+            print("Это исходящее сообщение.")
+            return {"status": "success", "message": "Outgoing message"}
+        elif to_address and user_email in to_address:
+            print("Это входящее сообщение.")
+        else:
+            print("Невозможно определить тип сообщения.")
+            return {"status": "success", "message": "Outgoing message"}            
+        
+        # print(f"headers: {headers}")
+
+        if 'data' in payload.get('body', {}):
+            data = payload['body']['data']
+        else:
+            for part in parts:
+                if part.get('mimeType') == 'text/plain' and 'data' in part.get('body', {}):
+                    data = part['body']['data']
+                break
+
+        if data:
+            decoded_data = base64.urlsafe_b64decode(data).decode('utf-8')
+            print(f"Message ID: {last_msg_id}")
+            print(f"Body: {decoded_data}")
+        else:
+            print(f"Message ID: {last_msg_id} has no body.")
 
         return {"status": "success", "message": "History received"}
 
