@@ -88,6 +88,13 @@ async def create_thread(
         # Отправляем email
         await gmail_service.send_email(gmail, message_body)
 
+        # Сохраняем assistant
+        await assistant_service.create_assistant_profile(
+            assistant_id=assistant_id, 
+            user_id=current_user.id, 
+            assistant_description=thread_data.assistant
+        )
+
         # Сохранение данных thread
         await email_thread_service.create_thread(
             id=openai_thread_id, 
@@ -97,13 +104,6 @@ async def create_thread(
             recipient_email=thread_data.recipient_email, 
             recipient_name=thread_data.recipient_name,
             sender_email=oauth_creds.email
-        )
-
-        # Сохраняем assistant
-        await assistant_service.create_assistant_profile(
-            assistant_id=assistant_id, 
-            user_id=current_user.id, 
-            assistant_description=thread_data.assistant
         )
 
         return {"status": "success", "message": "Thread created successfully"}
