@@ -77,8 +77,6 @@ async def create_thread(
             instructions="Сгенерируй приветственное письмо..."
         )
 
-        initial_message = "Привет! Я - ваш ассистент. Как я могу помочь?"
-
         # Формируем тело email
         message_body = open_ai_thread_service.compose_email_body(
             oauth_creds.email, 
@@ -117,7 +115,7 @@ async def create_thread(
             gmail_thread_id=gmail_response['threadId'],
             user_id=current_user.id,
             open_ai_thread_id=openai_thread_id,
-            recipient_name=thread_data.recipient_name
+            recipient_email=thread_data.recipient_email
         )
 
         return {"status": "success", "message": "Thread created successfully"}

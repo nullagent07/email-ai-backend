@@ -19,14 +19,14 @@ class GmailThreadService:
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'GmailThreadService':
         return cls(db)
 
-    async def create_gmail_thread(self, gmail_thread_id: str, user_id: int, open_ai_thread_id: str, recipient_name: str) -> GmailThread:
+    async def create_gmail_thread(self, gmail_thread_id: str, user_id: int, open_ai_thread_id: str, recipient_email: str) -> GmailThread:
         """Создает новый GmailThread."""
         
         new_gmail_thread = GmailThread(
             id=gmail_thread_id,
             user_id=user_id,
             open_ai_thread_id=open_ai_thread_id,
-            recipient_name=recipient_name
+            recipient_email=recipient_email
         )
         
         return await self.gmail_thread_repository.create_gmail_thread(new_gmail_thread)
