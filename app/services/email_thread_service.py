@@ -12,6 +12,7 @@ import base64
 from fastapi import Depends
 from app.core.dependency import get_db
 from uuid import UUID
+from typing import Optional
 
 class EmailThreadService:
     def __init__(self, db: AsyncSession):
@@ -22,8 +23,30 @@ class EmailThreadService:
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'EmailThreadService':
         return cls(db)
     
-    async def create_thread(self, new_thread: EmailThread) -> EmailThread:
+    async def create_thread(self, 
+                            id: str, 
+                            user_id: UUID, 
+                            description: str, 
+                            assistant_id: str, 
+                            recipient_email: str, 
+                            sender_email: str,
+                            recipient_name: Optional[str] = None,
+                            sender_name: Optional[str] = None
+                            ) -> EmailThread:
         """Создает новый email-тред в базе данных."""
+        
+        # Создаем новый тред
+        new_thread = EmailThread(
+            id=id, 
+            user_id=user_id, 
+            description=description, 
+            assistant_id=assistant_id, 
+            recipient_email=recipient_email, 
+            recipient_name=recipient_name,
+            sender_email=sender_email,
+            sender_name=sender_name
+        )
+        
         return await self.thread_repo.create_thread(new_thread)
     
     # Методы для EmailThread

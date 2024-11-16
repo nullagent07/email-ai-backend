@@ -48,19 +48,16 @@ async def create_thread(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Authentication required"
             )
-        
-        # Устанавливаем user_id из текущего пользователя
-        thread_data.user_id = current_user.id
 
         # Получаем oauth_creds
-        oauth_creds = await oauth_service.get_oauth_credentials_by_user_id_and_provider(thread_data.user_id, "google")
+        oauth_creds = await oauth_service.get_oauth_credentials_by_user_id_and_provider(current_user.id, "google")
 
         # Проверяем, что oauth_creds есть
         if not oauth_creds:
             raise ValueError("Gmail credentials not found")
 
         # Создание ассистента
-        assistant_id = await openai_service.setup_assistant(thread_data)
+        assistant_id = await openai_service.setup_assistant(thread_data.recipient_name)
 
         # Создание тред в OpenAI
         openai_thread_id = await openai_service.create_thread()
@@ -79,19 +76,35 @@ async def create_thread(
         )
 
         # Формируем тело email
-        message_body = email_thread_service.compose_email_body(oauth_creds.email, thread_data.recipient_email, initial_message)
+        message_body = email_thread_service.compose_email_body(
+            oauth_creds.email, 
+            thread_data.recipient_email, 
+            initial_message
+        )
 
         # Создаем gmail сервис
         gmail = await gmail_service.create_gmail_service(oauth_creds)
 
         # Отправляем email
         await gmail_service.send_email(gmail, message_body)
-        
+
         # Сохранение данных thread
-        await email_thread_service.create_thread(thread_data)
+        await email_thread_service.create_thread(
+            id=openai_thread_id, 
+            user_id=current_user.id, 
+            description=thread_data.assistant, 
+            assistant_id=assistant_id, 
+            recipient_email=thread_data.recipient_email, 
+            recipient_name=thread_data.recipient_name,
+            sender_email=oauth_creds.email
+        )
 
         # Сохраняем assistant
-        await assistant_service.create_assistant_profile(assistant_id, thread_data)
+        await assistant_service.create_assistant_profile(
+            assistant_id=assistant_id, 
+            user_id=current_user.id, 
+            assistant_description=thread_data.assistant
+        )
 
         return {"status": "success", "message": "Thread created successfully"}
 
@@ -153,7 +166,7 @@ async def gmail_webhook(
 
         print(f"from_email: {from_email}, to_email: {to_email}")
 
-        
+
 
         # Получаем данные из payload
         body_data = await gmail_service.get_body_data_from_payload(payload, parts)

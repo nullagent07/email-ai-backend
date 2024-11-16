@@ -15,9 +15,9 @@ class EmailThreadBase(BaseModel):
 
 class EmailThreadCreate(EmailThreadBase):
     recipient_email: str  # Email адрес получателя
-    recipient_name: str   # Имя получателя
+    recipient_name: Optional[str] = None  # Имя получателя
     assistant: str        # ID или имя ассистента
-    # assistant: AssistantProfileCreate 
+
 
 class EmailThreadUpdate(EmailThreadBase):
     status: ThreadStatus

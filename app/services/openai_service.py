@@ -19,11 +19,11 @@ class OpenAIService:
     def get_instance(cls) -> 'OpenAIService':
         return cls()
         
-    async def setup_assistant(self, thread_data: EmailThreadCreate) -> str:
+    async def setup_assistant(self, recipient_name: str) -> str:
         """Создает и настраивает ассистента OpenAI для пользователя."""
         return await self.create_assistant(
-            name=f"Email Assistant for {thread_data.recipient_name}",
-            instructions=self.generate_email_assistant_instructions(thread_data)
+            name=f"Email Assistant for {recipient_name}",
+            instructions=self.generate_email_assistant_instructions(recipient_name)
         )
     
     async def create_assistant(self, name: str, instructions: str, tools: Optional[List[Dict]] = None) -> str:
@@ -36,10 +36,10 @@ class OpenAIService:
         )
         return assistant.id
         
-    def generate_email_assistant_instructions(self, thread_data: EmailThreadCreate) -> str:
+    def generate_email_assistant_instructions(self, recipient_name: str) -> str:
         """Формирует инструкции для ассистента."""
         return f"""
-        Ты - умный email ассистент, который помогает вести переписку с {thread_data.recipient_name}.
+        Ты - умный email ассистент, который помогает вести переписку с {recipient_name}.
         ...
         """
         
