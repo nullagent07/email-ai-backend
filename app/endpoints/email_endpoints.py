@@ -102,9 +102,9 @@ async def create_thread(
 @router.post("/gmail/webhook")
 async def gmail_webhook(
     request: Request,
-    db: AsyncSession = Depends(get_db),
     gmail_service: GmailService = Depends(GmailService.get_instance),
     oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
+    openai_service: OpenAIService = Depends(OpenAIService.get_instance),
 ):  
     try:
         # Получаем заголовок Authorization
@@ -139,6 +139,12 @@ async def gmail_webhook(
         
         # Пробудет получить последнее сообщение
         last_message = await gmail_service.get_last_message(oauth_creds, user_email)
+
+        # # Добавляем сообщение в тред
+        # await openai_service.add_message_to_thread(
+        #     thread_id=openai_thread_id,
+        #     content=last_message
+        # )
 
         return {"status": "success", "message": "History received"}
 

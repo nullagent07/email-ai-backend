@@ -17,15 +17,6 @@
 - **description**: Описание AI-ассистента.
 - **status** Статус треда (активен или закрыт).
 
-### Таблица `Email_Message` (История сообщений)
-- **message_id** (Primary Key): Уникальный идентификатор для каждого сообщения.
-- **thread_id** (Foreign Key): Идентификатор треда, к которому относится сообщение.
-- **sender_email**: Email отправителя.
-- **receiver_email**: Email получателя.
-- **sent_date** (Enum: "sent", "received"): Дата и время отправления сообщения.
-- **content**: Содержание сообщения.
-- **status**: Временная метка сообщения (дата и время отправки/получения).
-
 ## Структура проекта
 <!-- ``` -->
 my_project/
@@ -67,7 +58,6 @@ my_project/
 - **app/repositories/**: Содержит операции с базой данных.
 - **app/models/**: Содержит модели базы данных.
 - **app/schemas/**: Содержит Pydantic схемы для валидации данных.
-  - **auth.py**: Функции для аутентификации.
 - **app/core/config.py**: Управление настройками приложения.
 - **alembic/**: Содержит файлы для миграций базы данных.
 - **tests/**: Содержит тесты для приложения.
@@ -109,8 +99,6 @@ SELECT current_date;        -- текущая дата
 \?                         -- помощь по командам psql
 SELECT * FROM alembic_version; -- инофрмация о миграциях
 
-DROP TYPE IF EXISTS messagedirection;
-DROP TYPE IF EXISTS messagetype;
 DROP TYPE IF EXISTS threadstatus;
 ```
 

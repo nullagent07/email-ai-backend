@@ -5,7 +5,7 @@ from core.config import get_app_settings, get_settings_no_cache
 from models.user import Base
 from models.email_thread import EmailThread
 from models.oauth_credentials import OAuthCredentials
-from app.models.assistant_profile import AssistantProfile
+from models.assistant_profile import AssistantProfile
 
 # Получение настроек приложения
 app_settings = get_app_settings()
