@@ -19,6 +19,9 @@ from fastapi import HTTPException, status, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import Levenshtein
+import base64
+from email.mime.text import MIMEText
+
 
 # other 
 import base64
@@ -130,7 +133,7 @@ class GmailService:
         
         return email_data.get('emailAddress')
 
-    async def get_payload_and_headers_and_parts(self, oauth_creds: OAuthCredentials) -> tuple[list[dict], list[dict], list[dict], str]: 
+    async def get_payload_and_headers_and_parts(self, oauth_creds: OAuthCredentials) -> tuple[list[dict], list[dict], list[dict], str, str]: 
         """Получает последнее сообщение"""
         # Создаем gmail сервис
         gmail = await self.create_gmail_service(oauth_creds)
@@ -157,11 +160,20 @@ class GmailService:
         # Получаем заголовки
         headers = payload.get('headers', [])
 
+        # Извлекаем Message-ID
+        message_id_header = None
+        subject = "No Subject"
+        for header in headers:
+            if header['name'] == 'Message-ID':
+                message_id_header = header['value']
+            if header['name'] == 'Subject':
+                subject = header['value']
+
         # Получаем части
         parts = payload.get('parts', [])
 
         # Получаем части
-        return payload, headers, parts, gmail_thread_id
+        return payload, headers, parts, gmail_thread_id, message_id_header, subject
     
     def normalize_email(self, email):
         """Приведение email к нормальному виду"""
@@ -249,3 +261,32 @@ class GmailService:
         else:
             print(f"Message ID: has no body.")
             return None
+        
+    def compose_email_body(self, 
+                           sender_email: str, 
+                           recipient_email: str, 
+                           content: str, 
+                           subject: str, 
+                           thread_id: Optional[str] = None, 
+                           references: Optional[str] = None,                            
+                           in_reply_to: Optional[str] = None) -> dict:
+        """Формирует тело email для отправки через Gmail API."""
+        message = MIMEText(content, 'html')
+        message['From'] = sender_email
+        message['To'] = recipient_email
+        message['Subject'] = subject
+
+        if in_reply_to:
+            message['In-Reply-To'] = in_reply_to
+        if references:
+            message['References'] = references
+            
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        body = {
+        'raw': raw_message
+        }
+        if thread_id:
+            body['threadId'] = thread_id
+
+        return body

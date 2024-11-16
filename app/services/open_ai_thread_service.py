@@ -13,7 +13,7 @@ from fastapi import Depends
 from app.core.dependency import get_db
 from uuid import UUID
 from typing import Optional
-
+from email.mime.text import MIMEText
 class OpenAiThreadService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -67,14 +67,6 @@ class OpenAiThreadService:
 
     async def get_threads_by_status(self, user_id: int, status: ThreadStatus) -> List[OpenAiThread]:
         return await self.open_ai_thread_repo.get_threads_by_status(user_id, status)
-
-    def compose_email_body(self, sender_email: str, recipient_email: str, content: str, thread_id: Optional[str] = None) -> dict:
-        """Формирует тело email для отправки через Gmail API."""
-        return {
-            'raw': base64.urlsafe_b64encode(
-                f"From: {sender_email}\r\nTo: {recipient_email}\r\nSubject: New conversation\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{content}\r\n\r\nThread ID: {thread_id}".encode()
-            ).decode()
-        }
 
     async def has_active_thread_with_recipient_email(self, user_id: UUID, recipient_email: str) -> bool:
         return await self.open_ai_thread_repo.has_active_thread_with_recipient_email(user_id, recipient_email)

@@ -78,10 +78,11 @@ async def create_thread(
         )
 
         # Формируем тело email
-        message_body = open_ai_thread_service.compose_email_body(
+        message_body = gmail_service.compose_email_body(
             oauth_creds.email, 
             thread_data.recipient_email, 
-            initial_message
+            initial_message,
+            subject="New subject"
         )
 
         # Создаем gmail сервис
@@ -89,8 +90,6 @@ async def create_thread(
 
         # Отправляем email
         gmail_response = await gmail_service.send_email(gmail, message_body)
-
-        # print(f"response: {response['threadId']}")
 
         # Сохраняем assistant
         await assistant_service.create_assistant_profile(
@@ -164,9 +163,9 @@ async def gmail_webhook(
             }
 
         # Получаем payload, headers и parts
-        payload, headers, parts, gmail_thread_id = await gmail_service.get_payload_and_headers_and_parts(oauth_creds)
+        payload, headers, parts, gmail_thread_id, message_id_header, subject = await gmail_service.get_payload_and_headers_and_parts(oauth_creds)
 
-        print(f"gmail_thread_id: {gmail_thread_id}")
+        # print(f"gmail_thread_id: {gmail_thread_id}")
 
         # return {"status": "success", "message": "Gmail thread id received"}
         # Определяем, является ли сообщение входящим или исходящим
@@ -180,6 +179,11 @@ async def gmail_webhook(
         from_email, to_email = inbox
 
         print(f"from_email: {from_email}, to_email: {to_email}")
+
+
+        # print(f"email_body: {email_body}")
+
+        # return {"status": "success", "message": "Inbox message"}
 
         # Получаем данные из payload
         body_data = await gmail_service.get_body_data_from_payload(payload, parts)
@@ -217,7 +221,15 @@ async def gmail_webhook(
         gmail = await gmail_service.create_gmail_service(oauth_creds)
 
         # сформировать email
-        email_body = open_ai_thread_service.compose_email_body(sender_email=user_email, recipient_email=from_email, content=thread_response, thread_id=gmail_thread_id)
+        email_body = gmail_service.compose_email_body(
+            sender_email=user_email, 
+            recipient_email=from_email, 
+            content=thread_response, 
+            thread_id=gmail_thread_id,
+            references=message_id_header,
+            in_reply_to=message_id_header,
+            subject=subject
+        )
 
         # отправить email
         await gmail_service.send_email(gmail, email_body)
