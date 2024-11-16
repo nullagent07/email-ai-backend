@@ -166,6 +166,9 @@ async def gmail_webhook(
         # Получаем payload, headers и parts
         payload, headers, parts, gmail_thread_id = await gmail_service.get_payload_and_headers_and_parts(oauth_creds)
 
+        print(f"gmail_thread_id: {gmail_thread_id}")
+
+        # return {"status": "success", "message": "Gmail thread id received"}
         # Определяем, является ли сообщение входящим или исходящим
         inbox = await gmail_service.validate_inbox_or_outbox(headers, user_email)
 
@@ -214,10 +217,10 @@ async def gmail_webhook(
         gmail = await gmail_service.create_gmail_service(oauth_creds)
 
         # сформировать email
-        email_body = open_ai_thread_service.compose_email_body(sender_email=user_email, recipient_email=from_email, content=thread_response)
+        email_body = open_ai_thread_service.compose_email_body(sender_email=user_email, recipient_email=from_email, content=thread_response, thread_id=gmail_thread_id)
 
         # отправить email
-        await gmail_service.send_email(gmail, email_body, thread_id=gmail_thread_id)
+        await gmail_service.send_email(gmail, email_body)
 
         return {"status": "success", "message": "History received"}
 

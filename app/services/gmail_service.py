@@ -74,11 +74,9 @@ class GmailService:
         })
         return build('gmail', 'v1', credentials=creds)
 
-    async def send_email(self, gmail, message_body, thread_id: Optional[str] = None) -> dict:
+    async def send_email(self, gmail, message_body) -> dict:
         """Отправляет email через Gmail API."""
         try:
-            if thread_id:
-                message_body['threadId'] = thread_id  # Включаем threadId в тело сообщения
             return gmail.users().messages().send(userId='me', body=message_body).execute()
         except Exception as e:
             raise HTTPException(

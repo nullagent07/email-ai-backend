@@ -68,11 +68,11 @@ class OpenAiThreadService:
     async def get_threads_by_status(self, user_id: int, status: ThreadStatus) -> List[OpenAiThread]:
         return await self.open_ai_thread_repo.get_threads_by_status(user_id, status)
 
-    def compose_email_body(self, sender_email: str, recipient_email: str, content: str) -> dict:
+    def compose_email_body(self, sender_email: str, recipient_email: str, content: str, thread_id: Optional[str] = None) -> dict:
         """Формирует тело email для отправки через Gmail API."""
         return {
             'raw': base64.urlsafe_b64encode(
-                f"From: {sender_email}\r\nTo: {recipient_email}\r\nSubject: New conversation\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{content}".encode()
+                f"From: {sender_email}\r\nTo: {recipient_email}\r\nSubject: New conversation\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{content}\r\n\r\nThread ID: {thread_id}".encode()
             ).decode()
         }
 
