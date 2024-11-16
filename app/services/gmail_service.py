@@ -1,32 +1,40 @@
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from google.auth.exceptions import RefreshError
-from fastapi import HTTPException, status, Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-import base64
+# core
+from app.core.dependency import get_db
+from app.core.config import get_app_settings
 
+# services
 from app.services.openai_service import OpenAIService
 from app.services.oauth_service import OAuthCredentialsService
 from app.services.token_service import TokenService
 
+# repositories
 from app.repositories.assistant_profile_repository import AssistantProfileRepository
 from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
 from app.repositories.email_thread_repository import EmailThreadRepository
 from app.repositories.user_repository import UserRepository
 
+# models
 from app.models.oauth_credentials import OAuthCredentials
 
+# google
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from google.oauth2 import id_token
+from google.auth.transport.requests import Request as GoogleRequest
+from google_auth_oauthlib.flow import Flow
+
+# fastapi
+from fastapi import HTTPException, status, Depends, Request
+
+# sqlalchemy
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# other 
+import base64
 import re
 from typing import Any
 import json
-from google.oauth2 import id_token
-from google.auth.transport.requests import Request
-
-from google_auth_oauthlib.flow import Flow
-
-from app.core.dependency import get_db
-
-from app.core.config import get_app_settings
+from typing import Union
 
 settings = get_app_settings()
 
@@ -101,7 +109,7 @@ class GmailService:
             token = token.replace("Bearer ", "")
             
             # Создаем правильный объект Request
-            request = Request()
+            request = GoogleRequest()
             
             # Проверяем JWT токен
             decoded_token = id_token.verify_oauth2_token(
@@ -138,7 +146,7 @@ class GmailService:
         
         return email_data.get('emailAddress')
 
-    async def get_last_message(self, oauth_creds: OAuthCredentials, user_email: str):
+    async def get_payload_and_headers_and_parts(self, oauth_creds: OAuthCredentials) -> tuple[list[dict], list[dict], list[dict]]: 
         """Получает последнее сообщение"""
         # Создаем gmail сервис
         gmail = await self.create_gmail_service(oauth_creds)
@@ -162,8 +170,11 @@ class GmailService:
         # Получаем части
         parts = payload.get('parts', [])
 
-        # Создаем переменную для данных
-        data = None
+        # Получаем части
+        return payload, headers, parts
+
+    async def validate_inbox_or_outbox(self, headers: list[dict], user_email: str) -> Union[tuple[str, str], None]:
+        """Определяет, является ли сообщение входящим или исходящим"""
 
         # Извлекаем значения заголовков 'From' и 'To'
         for header in headers:
@@ -175,20 +186,32 @@ class GmailService:
         # Определяем тип сообщения
         if from_address and user_email in from_address:
             print("Это исходящее сообщение.")
-            return {"status": "success", "message": "Outgoing message"}
+            return None
         elif to_address and user_email in to_address:
             print("Это входящее сообщение.")
         else:
             print("Невозможно определить тип сообщения.")
-            return {"status": "success", "message": "Outgoing message"}
+            return None
         
         # Шаблон для извлечения адреса электронной почты
         email_pattern = r'<([^>]+)>'
 
-        # Извлечение адресов
-        from_email = re.search(email_pattern, from_address).group(1)
-        to_email = re.search(email_pattern, to_address).group(1)
+        # Извлечение адресов с обработкой ошибок
+        try:
+            from_match = re.search(email_pattern, from_address)
+            to_match = re.search(email_pattern, to_address)
+            
+            if from_match and to_match:
+                from_email = from_match.group(1)
+                to_email = to_match.group(1)
+                return from_email, to_email
+        except Exception as e:
+            print(f"Ошибка при извлечении адресов: {str(e)}")
+        
+        return None
 
+    async def get_body_data_from_payload(self, payload: list[dict], parts: list[dict]) -> Union[str, None]:
+        """Получает данные из payload"""
         # Получаем данные
         if 'data' in payload.get('body', {}):
             data = payload['body']['data']
@@ -201,7 +224,7 @@ class GmailService:
         # Декодируем данные
         if data:
             decoded_data = base64.urlsafe_b64decode(data).decode('utf-8')
-            print(f"Message ID: {last_msg_id}")
-            print(f"Body: {decoded_data}")
+            return decoded_data
         else:
-            print(f"Message ID: {last_msg_id} has no body.")
+            print(f"Message ID: has no body.")
+            return None

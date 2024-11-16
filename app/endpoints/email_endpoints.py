@@ -113,8 +113,8 @@ async def gmail_webhook(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Отсутствует или неверный заголовок Authorization"
-            )
-
+            )        
+    
         # Проверяем токен
         is_valid = await gmail_service.verify_google_webhook_token(auth_header)
         if not is_valid:
@@ -137,8 +137,28 @@ async def gmail_webhook(
                 "message": "Gmail credentials not found"
             }
         
-        # Пробудет получить последнее сообщение
-        last_message = await gmail_service.get_last_message(oauth_creds, user_email)
+
+        # Получаем payload, headers и parts
+        payload, headers, parts = await gmail_service.get_payload_and_headers_and_parts(oauth_creds)
+
+        # Определяем, является ли сообщение входящим или исходящим
+        inbox = await gmail_service.validate_inbox_or_outbox(headers, user_email)
+
+        # Если сообщение не является входящим, то возвращаем успех
+        if inbox is None:
+            return {"status": "success", "message": "Outgoing message"}
+
+        # Получаем адреса отправителя и получателя
+        from_email, to_email = inbox
+
+        print(f"from_email: {from_email}, to_email: {to_email}")
+
+        
+
+        # Получаем данные из payload
+        body_data = await gmail_service.get_body_data_from_payload(payload, parts)
+
+        print(f"body_data: {body_data}")
 
         # # Добавляем сообщение в тред
         # await openai_service.add_message_to_thread(

@@ -18,8 +18,6 @@ from typing import Optional, Union
 from fastapi import Depends
 from uuid import UUID
 
-
-
 class OAuthCredentialsService:
     def __init__(self, db: AsyncSession):
         self.oauth_credentials_repo = OAuthCredentialsRepository(db)
