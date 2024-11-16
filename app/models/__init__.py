@@ -2,7 +2,6 @@
 from .user import User
 from .oauth_credentials import OAuthCredentials
 from .email_thread import EmailThread
-from .email_message import EmailMessage
 from .assistant_profile import AssistantProfile
 
 __all__ = [

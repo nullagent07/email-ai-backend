@@ -1,21 +1,23 @@
 # app/endpoints/auth_endpoints.py
 
-from fastapi import APIRouter, Depends, Response, Request, HTTPException, status
-from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.oauth_service import OAuthService
+# services
+from app.services.oauth_service import OAuthCredentialsService
+from app.services.gmail_service import GmailService
+from app.services.token_service import TokenService
+from app.services.user_service import UserService
+
+# core
 from app.core.dependency import get_db
 from app.core.config import get_app_settings
 import secrets
-from app.services.gmail_service import GmailService
-from google_auth_oauthlib.flow import Flow
-from app.services.token_service import TokenService
-from google.oauth2 import id_token
-import requests
-from app.services.user_service import UserService
-from google.auth.transport.requests import Request as GoogleRequest  # Переименовываем импорт
-from fastapi import Request
 
+# google
+from google.oauth2 import id_token
+from google.auth.transport.requests import Request as GoogleRequest
+
+# fastapi
+from fastapi import APIRouter, Depends, Response, Request, HTTPException, status
+from fastapi.responses import RedirectResponse
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -61,7 +63,7 @@ async def google_callback(
     code: str = None,
     state: str = None,
     error: str = None,
-    oauth_service: OAuthService = Depends(OAuthService.get_instance),
+    oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
     gmail_service: GmailService = Depends(GmailService.get_instance),
     user_service: UserService = Depends(UserService.get_instance)
 ):

@@ -1,16 +1,8 @@
 # app/dependencies.py
 
 from collections.abc import AsyncGenerator
-from typing import Annotated
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from app.core.config import get_app_settings
-from app.services.auth_service import AuthService
-from app.repositories.auth_repository import AuthRepository
-from jose import JWTError
-from app.models.user import User
-from app.services.token_service import TokenService
 
 settings = get_app_settings()
 

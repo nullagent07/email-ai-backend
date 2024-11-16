@@ -5,15 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # services
-from app.services.email_service import EmailService
+from app.services.email_thread_service import EmailThreadService
 from app.services.gmail_service import GmailService
 from app.services.user_service import UserService
 from app.services.openai_service import OpenAIService
-from app.services.oauth_service import OAuthService
+from app.services.oauth_service import OAuthCredentialsService
 from app.services.assistant_profile_service import AssistantProfileService
+
 # Schemas
-from app.schemas.email_message_schema import EmailMessageCreate, EmailMessageResponse
-from app.schemas.email_thread_schema import EmailThreadCreate, EmailThreadResponse, ThreadStatus
+from app.schemas.email_thread_schema import EmailThreadCreate
 
 # core
 from app.core.dependency import get_db
@@ -36,8 +36,8 @@ async def create_thread(
     user_service: UserService = Depends(UserService.get_instance),    
     openai_service: OpenAIService = Depends(OpenAIService.get_instance),
     gmail_service: GmailService = Depends(GmailService.get_instance),
-    email_service: EmailService = Depends(EmailService.get_instance),
-    oauth_service: OAuthService = Depends(OAuthService.get_instance),
+    email_thread_service: EmailThreadService = Depends(EmailThreadService.get_instance),
+    oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
     assistant_service: AssistantProfileService = Depends(AssistantProfileService.get_instance),
 ):
     try:
@@ -79,7 +79,7 @@ async def create_thread(
         )
 
         # Формируем тело email
-        message_body = email_service.compose_email_body(oauth_creds.email, thread_data.recipient_email, initial_message)
+        message_body = email_thread_service.compose_email_body(oauth_creds.email, thread_data.recipient_email, initial_message)
 
         # Создаем gmail сервис
         gmail = await gmail_service.create_gmail_service(oauth_creds)
@@ -88,7 +88,7 @@ async def create_thread(
         await gmail_service.send_email(gmail, message_body)
         
         # Сохранение данных thread
-        await email_service.create_thread(thread_data)
+        await email_thread_service.create_thread(thread_data)
 
         # Сохраняем assistant
         await assistant_service.create_assistant_profile(assistant_id, thread_data)
@@ -104,7 +104,7 @@ async def gmail_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
     gmail_service: GmailService = Depends(GmailService.get_instance),
-    oauth_service: OAuthService = Depends(OAuthService.get_instance),
+    oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
 ):  
     try:
         # Получаем заголовок Authorization
@@ -148,104 +148,3 @@ async def gmail_webhook(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Не удалось обработать уведомление: {str(e)}"
         )
-
-# # Эндпоинт для получения всех потоков текущего пользователя
-# @router.get("/threads/", response_model=List[EmailThreadResponse])
-# async def get_user_threads(
-#     db: AsyncSession = Depends(get_db),
-#     user_service: UserService = Depends(UserService.get_instance),
-# ):
-#     email_service = EmailService(db)
-#     try:
-#         threads = await email_service.get_user_threads(user_service.get_current_user().id)
-#         return threads
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
-# # Эндпоинт для закрытия потока
-# @router.put("/threads/{thread_id}/close", response_model=EmailThreadResponse)
-# async def close_thread(
-#     thread_id: int,
-#     db: AsyncSession = Depends(get_db),
-#     user_service: UserService = Depends(UserService.get_instance),
-# ):
-#     email_service = EmailService(db)
-#     try:
-#         # Проверяем, принадлежит и поток текущему пользователю
-#         thread = await email_service.get_thread_by_id(thread_id)
-#         if not thread or thread.user_id != user_service.get_current_user().id:
-#             raise HTTPException(status_code=404, detail="Thread not found")
-#         updated_thread = await email_service.close_email_thread(thread_id)
-#         return updated_thread
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
-# # Эндпоинт для получения потоков по статусу
-# @router.get("/threads/status/{status}", response_model=List[EmailThreadResponse])
-# async def get_threads_by_status(
-#     status: ThreadStatus,
-#     db: AsyncSession = Depends(get_db),
-#     user_service: UserService = Depends(UserService.get_instance)
-# ):
-#     email_service = EmailService(db)
-#     try:
-#         threads = await email_service.get_threads_by_status(user_service.get_current_user().id, status)
-#         return threads
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
-# # Эндпоинт для отправки email-сообщения
-# @router.post("/messages/send", response_model=EmailMessageResponse)
-# async def send_email_message(
-#     message_data: EmailMessageCreate,
-#     db: AsyncSession = Depends(get_db),
-#     user_service: UserService = Depends(UserService.get_instance)
-# ):
-#     email_service = EmailService(db)
-#     try:
-#         # Проверяем, принадлежит ли поток текущему пользователю
-#         thread = await email_service.get_thread_by_id(message_data.thread_id)
-#         if not thread or thread.user_id != user_service.get_current_user().id:
-#             raise HTTPException(status_code=404, detail="Thread not found")
-#         message = await email_service.send_email_message(message_data)
-#         return message
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
-# # Эндпоинт для получения всех сообщений в потоке
-# @router.get("/threads/{thread_id}/messages", response_model=List[EmailMessageResponse])
-# async def get_messages_in_thread(
-#     thread_id: int,
-#     db: AsyncSession = Depends(get_db),
-#     user_service: UserService = Depends(UserService.get_instance)
-# ):
-#     email_service = EmailService(db)
-#     try:
-#         # Проверяем, принадлежит ли поток текущему пользователю
-#         thread = await email_service.get_thread_by_id(thread_id)
-#         if not thread or thread.user_id != user_service.get_current_user().id:
-#             raise HTTPException(status_code=404, detail="Thread not found")
-#         messages = await email_service.get_messages_in_thread(thread_id)
-#         return messages
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-
-# # Эндпоинт для получения отдельног сообщения по его ID
-# @router.get("/messages/{message_id}", response_model=EmailMessageResponse)
-# async def get_message_by_id(
-#     message_id: int,
-#     db: AsyncSession = Depends(get_db),
-#     user_service: UserService = Depends(UserService.get_instance)
-# ):
-#     email_service = EmailService(db)
-#     try:
-#         message = await email_service.get_message_by_id(message_id)
-#         if not message:
-#             raise HTTPException(status_code=404, detail="Message not found")
-#         # Проверяем, принадлежит ли сообщение потоку текущего пользователя
-#         thread = await email_service.get_thread_by_id(message.thread_id)
-#         if not thread or thread.user_id != user_service.get_current_user().id:
-#             raise HTTPException(status_code=403, detail="Not authorized to access this message")
-#         return message
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))

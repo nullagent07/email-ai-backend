@@ -14,15 +14,18 @@ class EmailThread(Base):
 
     id = Column(String, primary_key=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
-    thread_name = Column(String, nullable=False)
+    thread_name = Column(String, nullable=True)
     creation_date = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     description = Column(String)
     status = Column(Enum(ThreadStatus), default=ThreadStatus.ACTIVE, nullable=False)
     assistant_id = Column(String, ForeignKey('assistant_profiles.id'))
     
-    # Добавляем новые поля
+    # Поле получателя
     recipient_email = Column(String, nullable=False)  # Email получателя
-    recipient_name = Column(String, nullable=False)   # Имя получателя
+    recipient_name = Column(String, nullable=True)   # Имя получателя
+    # Поле отправителя
+    sender_email = Column(String, nullable=False)
+    sender_name = Column(String, nullable=True)
     
     # Каждый тред принадлежит одному ассистенту
     assistant = relationship("AssistantProfile", back_populates="threads")

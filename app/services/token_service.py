@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from app.core.config import settings
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
 
 class TokenService:
     def __init__(self):

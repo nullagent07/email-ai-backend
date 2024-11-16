@@ -6,33 +6,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import base64
 
 from app.services.openai_service import OpenAIService
-from app.services.oauth_service import OAuthService
+from app.services.oauth_service import OAuthCredentialsService
 from app.services.token_service import TokenService
 
 from app.repositories.assistant_profile_repository import AssistantProfileRepository
 from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
 from app.repositories.email_thread_repository import EmailThreadRepository
 from app.repositories.user_repository import UserRepository
-from app.repositories.email_message_repository import EmailMessageRepository
 
-
-from app.models.assistant_profile import AssistantProfile
-from app.models.email_thread import EmailThread, ThreadStatus
-from app.models.user import User
 from app.models.oauth_credentials import OAuthCredentials
-from app.models.email_message import EmailMessage, MessageType
 
-from app.schemas.email_thread_schema import EmailThreadCreate
-
-
-from uuid import UUID
 import re
 from typing import Any
 import json
 from google.oauth2 import id_token
 from google.auth.transport.requests import Request
 
-from google_auth_oauthlib.flow import InstalledAppFlow, Flow
+from google_auth_oauthlib.flow import Flow
 
 from app.core.dependency import get_db
 
@@ -44,7 +34,7 @@ class GmailService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.oauth_repo = OAuthCredentialsRepository(db)
-        self.oauth_service = OAuthService(db)
+        self.oauth_service = OAuthCredentialsService(db)
         self.thread_repo = EmailThreadRepository(db)
         self.assistant_repo = AssistantProfileRepository(db)
         self.openai_service = OpenAIService()

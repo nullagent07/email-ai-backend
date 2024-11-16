@@ -6,17 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.user_repository import UserRepository
 # models
 from app.models.user import User
-# schemas
-from app.schemas.user_schema import UserCreate
 # services
 from app.services.token_service import TokenService
-from app.services.auth_service import AuthService
 # other
 from typing import Optional
 import logging
 from passlib.context import CryptContext
-from fastapi import Request, HTTPException, status, Depends
-from jose import JWTError
+from fastapi import Request, Depends
 from app.core.dependency import get_db
 from uuid import UUID
 
