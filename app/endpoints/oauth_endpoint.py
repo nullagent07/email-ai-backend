@@ -64,7 +64,8 @@ async def google_callback(
     error: str = None,
     oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
     gmail_service: GmailService = Depends(GmailService.get_instance),
-    user_service: UserService = Depends(UserService.get_instance)
+    user_service: UserService = Depends(UserService.get_instance),
+    token_service: TokenService = Depends(TokenService.get_instance)
 ):
     """Обрабатывает callback от Google после авторизации и редиректит на фронтенд"""
     # Обрабатываем ошибки авторизации от Google
@@ -118,7 +119,7 @@ async def google_callback(
     )
 
     # Генерация токена для пользователя
-    access_token = gmail_service.token_service.create_access_token(data={"sub": str(user.id)})
+    access_token = token_service.create_access_token(data={"sub": str(user.id)})
     
     # Формируем URL для редиректа с параметрами
     redirect_params = {
