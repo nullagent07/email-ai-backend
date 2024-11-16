@@ -18,6 +18,9 @@ from fastapi import HTTPException, status, Depends, Request
 # sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import Levenshtein
+
+
 # other 
 import base64
 import re
@@ -154,9 +157,24 @@ class GmailService:
 
         # Получаем части
         return payload, headers, parts
+    
+    def normalize_email(self, email):
+        """Приведение email к нормальному виду"""
+        # Приведение к нижнему регистру
+        email = email.lower()
+        # Разделяем локальную и доменную части
+        local, domain = email.split('@', 1)
+        # Удаляем точки только для Gmail
+        if 'gmail.com' in domain:
+            local = local.replace('.', '')
+        return f"{local}@{domain}"
 
     async def validate_inbox_or_outbox(self, headers: list[dict], user_email: str) -> Union[tuple[str, str], None]:
         """Определяет, является ли сообщение входящим или исходящим"""
+
+        # Инициализация адресов
+        from_address = None
+        to_address = None
 
         # Извлекаем значения заголовков 'From' и 'To'
         for header in headers:
@@ -165,33 +183,49 @@ class GmailService:
             elif header['name'] == 'To':
                 to_address = header['value']
 
-        # Определяем тип сообщения
-        if from_address and user_email in from_address:
-            print("Это исходящее сообщение.")
+        if not from_address or not to_address:
+            print("Заголовки From или To отсутствуют.")
             return None
-        elif to_address and user_email in to_address:
-            print("Это входящее сообщение.")
-        else:
-            print("Невозможно определить тип сообщения.")
-            return None
-        
-        # Шаблон для извлечения адреса электронной почты
-        email_pattern = r'<([^>]+)>'
 
-        # Извлечение адресов с обработкой ошибок
+        email_pattern = r'([\w\.-]+@[\w\.-]+\.\w+)'  # Регулярное выражение для почты
+
         try:
+            # Извлечение email-адресов
             from_match = re.search(email_pattern, from_address)
             to_match = re.search(email_pattern, to_address)
-            
-            if from_match and to_match:
-                from_email = from_match.group(1)
-                to_email = to_match.group(1)
-                return from_email, to_email
-        except Exception as e:
-            print(f"Ошибка при извлечении адресов: {str(e)}")
-        
-        return None
 
+            if from_match and to_match:
+                from_email = from_match.group(1).lower()  # Приведение к нижнему регистру
+                to_email = to_match.group(1).lower()
+                user_email = user_email.lower()
+
+                # Рассчитываем расстояние Левенштейна для сравнения
+                from_distance = Levenshtein.distance(from_email, user_email)
+                to_distance = Levenshtein.distance(to_email, user_email)
+
+                # Определяем тип сообщения
+                if from_distance == 0:  # Полное совпадение с отправителем
+                    print("Это исходящее сообщение.")
+                    return None
+                elif to_distance == 0:  # Полное совпадение с получателем
+                    print("Это входящее сообщение.")
+                    return from_email, to_email
+                elif from_distance <= 2:  # Допустимая ошибка для отправителя
+                    print("Похоже, это исходящее сообщение с опечаткой.")
+                    return None
+                elif to_distance <= 2:  # Допустимая ошибка для получателя
+                    print("Похоже, это входящее сообщение с опечаткой.")
+                    return from_email, to_email
+                else:
+                    print("Невозможно определить тип сообщения.")
+                    return None
+            else:
+                print("Не удалось извлечь email-адреса.")
+                return None
+        except Exception as e:
+            print(f"Ошибка при обработке email-адресов: {str(e)}")
+            return None
+        
     async def get_body_data_from_payload(self, payload: list[dict], parts: list[dict]) -> Union[str, None]:
         """Получает данные из payload"""
         # Получаем данные

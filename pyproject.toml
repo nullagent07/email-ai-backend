@@ -29,6 +29,7 @@ dependencies = [
     "passlib>=1.7.4",
     "google-api-python-client>=2.151.0",
     "fastapi-mail>=1.4.1",
+    "Levenshtein>=0.26.1",
 ]
 requires-python = "==3.12.*"
 readme = "README.md"
