@@ -10,7 +10,7 @@ class ThreadStatus(enum.Enum):
     CLOSED = "closed"
 
 class OpenAiThread(Base):
-    __tablename__ = 'openai_threads'
+    __tablename__ = 'open_ai_threads'
 
     id = Column(String, primary_key=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)

@@ -17,7 +17,7 @@ from typing import Optional
 class OpenAiThreadService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.thread_repo = OpenAiThreadRepository(db)
+        self.open_ai_thread_repo = OpenAiThreadRepository(db)
 
     @classmethod
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'OpenAiThreadService':
@@ -47,21 +47,21 @@ class OpenAiThreadService:
             sender_name=sender_name
         )
         
-        return await self.thread_repo.create_thread(new_thread)
+        return await self.open_ai_thread_repo.create_thread(new_thread)
     
     # Методы для OpenAiThread
     async def get_user_threads(self, user_id: int) -> List[OpenAiThread]:
-        return await self.thread_repo.get_threads_by_user_id(user_id)
+        return await self.open_ai_thread_repo.get_threads_by_user_id(user_id)
 
     async def close_email_thread(self, thread_id: int) -> OpenAiThread:
-        thread = await self.thread_repo.get_thread_by_id(thread_id)
+        thread = await self.open_ai_thread_repo.get_thread_by_id(thread_id)
         if not thread:
             raise ValueError("Thread not found")
         thread.status = ThreadStatus.CLOSED
-        return await self.thread_repo.update_thread(thread)
+        return await self.open_ai_thread_repo.update_thread(thread)
 
     async def get_threads_by_status(self, user_id: int, status: ThreadStatus) -> List[OpenAiThread]:
-        return await self.thread_repo.get_threads_by_status(user_id, status)
+        return await self.open_ai_thread_repo.get_threads_by_status(user_id, status)
 
     def compose_email_body(self, sender_email: str, recipient_email: str, content: str) -> dict:
         """Формирует тело email для отправки через Gmail API."""
@@ -72,6 +72,6 @@ class OpenAiThreadService:
         }
 
     async def has_active_thread_with_recipient_email(self, user_id: UUID, recipient_email: str) -> bool:
-        return await self.thread_repo.has_active_thread_with_recipient_email(user_id, recipient_email)
+        return await self.open_ai_thread_repo.has_active_thread_with_recipient_email(user_id, recipient_email)
 
     

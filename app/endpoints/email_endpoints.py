@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.open_ai_thread_service import OpenAiThreadService
 from app.services.gmail_service import GmailService
 from app.services.user_service import UserService
-from app.services.openai_service import OpenAIService
+from app.services.open_ai_service import OpenAIService
 from app.services.oauth_service import OAuthCredentialsService
 from app.services.assistant_profile_service import AssistantProfileService
 
@@ -34,11 +34,12 @@ async def create_thread(
     request: Request,
     thread_data: EmailThreadCreate,
     user_service: UserService = Depends(UserService.get_instance),    
-    openai_service: OpenAIService = Depends(OpenAIService.get_instance),
+    open_ai_service: OpenAIService = Depends(OpenAIService.get_instance),
     gmail_service: GmailService = Depends(GmailService.get_instance),
-    email_thread_service: OpenAiThreadService = Depends(OpenAiThreadService.get_instance),
+    open_ai_thread_service: OpenAiThreadService = Depends(OpenAiThreadService.get_instance),
     oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
     assistant_service: AssistantProfileService = Depends(AssistantProfileService.get_instance),
+    
 ):
     try:
         # Получаем текущего пользователя
@@ -57,26 +58,26 @@ async def create_thread(
             raise ValueError("Gmail credentials not found")
 
         # Создание ассистента
-        assistant_id = await openai_service.setup_assistant(thread_data.recipient_name)
+        assistant_id = await open_ai_service.setup_assistant(thread_data.recipient_name)
 
         # Создание тред в OpenAI
-        openai_thread_id = await openai_service.create_thread()
+        openai_thread_id = await open_ai_service.create_thread()
         
         # Добавляем начальное сообщение в тред
-        await openai_service.add_message_to_thread(
+        await open_ai_service.add_message_to_thread(
             thread_id=openai_thread_id,
             content=f"Это начало email переписки с {thread_data.recipient_name}..."
         )
 
         # Запускаем тред
-        initial_message = await openai_service.run_thread(
+        initial_message = await open_ai_service.run_thread(
             thread_id=openai_thread_id,
             assistant_id=assistant_id,
             instructions="Сгенерируй приветственное письмо..."
         )
 
         # Формируем тело email
-        message_body = email_thread_service.compose_email_body(
+        message_body = open_ai_thread_service.compose_email_body(
             oauth_creds.email, 
             thread_data.recipient_email, 
             initial_message
@@ -96,7 +97,7 @@ async def create_thread(
         )
 
         # Сохранение данных thread
-        await email_thread_service.create_thread(
+        await open_ai_thread_service.create_thread(
             id=openai_thread_id, 
             user_id=current_user.id, 
             description=thread_data.assistant, 
@@ -117,7 +118,7 @@ async def gmail_webhook(
     request: Request,
     gmail_service: GmailService = Depends(GmailService.get_instance),
     oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
-    openai_service: OpenAIService = Depends(OpenAIService.get_instance),
+    open_ai_service: OpenAIService = Depends(OpenAIService.get_instance),
 ):  
     try:
         # Получаем заголовок Authorization
@@ -172,7 +173,7 @@ async def gmail_webhook(
         print(f"body_data: {body_data}")
 
         # # Добавляем сообщение в тред
-        # await openai_service.add_message_to_thread(
+        # await open_ai_service.add_message_to_thread(
         #     thread_id=openai_thread_id,
         #     content=last_message
         # )

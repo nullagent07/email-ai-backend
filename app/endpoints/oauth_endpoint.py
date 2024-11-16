@@ -19,7 +19,6 @@ from google.auth.transport.requests import Request as GoogleRequest
 from fastapi import APIRouter, Depends, Response, Request, HTTPException, status
 from fastapi.responses import RedirectResponse
 
-
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 settings = get_app_settings()
