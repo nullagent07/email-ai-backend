@@ -5,6 +5,7 @@ from typing import List, Optional
 from app.models.open_ai_thread import OpenAiThread, ThreadStatus
 from sqlalchemy import and_, or_, exists
 from app.models.user import User
+from uuid import UUID
 
 class OpenAiThreadRepository:
     def __init__(self, db: AsyncSession):
@@ -13,6 +14,18 @@ class OpenAiThreadRepository:
     async def get_thread_by_id(self, thread_id: int) -> Optional[OpenAiThread]:
         result = await self.db.execute(
             select(OpenAiThread).filter(OpenAiThread.id == thread_id)
+        )
+        return result.scalars().first()
+
+    async def get_thread_id_by_user_id_and_recipient_email(self, user_id: UUID, recipient_email: str) -> Optional[int]:
+        result = await self.db.execute(
+            select(OpenAiThread.id).filter(and_(OpenAiThread.recipient_email == recipient_email, OpenAiThread.user_id == user_id))
+        )
+        return result.scalars().first()
+    
+    async def get_assistant_id_by_thread_id(self, thread_id: int) -> Optional[str]:
+        result = await self.db.execute(
+            select(OpenAiThread.assistant_id).filter(OpenAiThread.id == thread_id)
         )
         return result.scalars().first()
 

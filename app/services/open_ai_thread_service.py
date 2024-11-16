@@ -23,6 +23,9 @@ class OpenAiThreadService:
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'OpenAiThreadService':
         return cls(db)
     
+    async def get_assistant_id_by_thread_id(self, thread_id: int) -> Optional[str]:
+        return await self.open_ai_thread_repo.get_assistant_id_by_thread_id(thread_id)
+    
     async def create_thread(self, 
                             id: str, 
                             user_id: UUID, 
@@ -48,8 +51,10 @@ class OpenAiThreadService:
         )
         
         return await self.open_ai_thread_repo.create_thread(new_thread)
-    
-    # Методы для OpenAiThread
+
+    async def get_thread_id_by_user_id_and_recipient_email(self, user_id: UUID, recipient_email: str) -> Optional[int]:
+        return await self.open_ai_thread_repo.get_thread_id_by_user_id_and_recipient_email(user_id, recipient_email)
+
     async def get_user_threads(self, user_id: int) -> List[OpenAiThread]:
         return await self.open_ai_thread_repo.get_threads_by_user_id(user_id)
 
