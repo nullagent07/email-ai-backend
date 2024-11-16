@@ -30,8 +30,8 @@ class AssistantProfileRepository:
     async def get_assistant_by_thread(self, thread_id: str) -> Optional[AssistantProfile]:
         result = await self.db.execute(
             select(AssistantProfile)
-            .join(EmailThread)
-            .filter(EmailThread.id == thread_id)
+            .join(OpenAiThread)
+            .filter(OpenAiThread.id == thread_id)
         )
         return result.scalars().first()
         

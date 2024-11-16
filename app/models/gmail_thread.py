@@ -18,4 +18,4 @@ class GmailThread(Base):
     user = relationship("User", back_populates="gmail_threads")
 
     # Каждый gmail_thread принадлежит одному email_thread
-    email_thread = relationship("EmailThread", back_populates="gmail_thread")
+    email_thread = relationship("OpenAiThread", back_populates="gmail_thread")
