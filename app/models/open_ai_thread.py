@@ -26,5 +26,8 @@ class OpenAiThread(Base):
     sender_email = Column(String, nullable=False)
     sender_name = Column(String, nullable=True)
     
+    # Добавляем отношение с GmailThread
+    gmail_threads = relationship("GmailThread", back_populates="email_thread")
+    
     # Каждый тред принадлежит одному ассистенту
     assistant = relationship("AssistantProfile", back_populates="threads")

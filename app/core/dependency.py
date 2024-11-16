@@ -31,11 +31,3 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Зависимость для получения асинхронной сессии БД."""
     async with async_session() as session:
         yield session
-
-# def get_auth_service(
-#     db: Annotated[AsyncSession, Depends(get_db)]
-# ) -> AuthService:
-#     """Возвращает экземпляр AuthService."""
-#     return AuthService(db)
-
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")

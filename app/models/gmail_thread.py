@@ -13,9 +13,9 @@ class GmailThread(Base):
     
     recipient_email = Column(String, nullable=False)
     sender_email = Column(String, nullable=True)
-    
-    # Связь с пользователем
-    user = relationship("User", back_populates="gmail_threads")
 
     # Каждый gmail_thread принадлежит одному open_ai_threads
     email_thread = relationship("OpenAiThread", back_populates="gmail_threads")
+
+    # Связь с пользователем
+    user = relationship("User", back_populates="gmail_threads")

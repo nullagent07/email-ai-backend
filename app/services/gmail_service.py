@@ -74,10 +74,10 @@ class GmailService:
         })
         return build('gmail', 'v1', credentials=creds)
 
-    async def send_email(self, gmail, message_body):
+    async def send_email(self, gmail, message_body) -> dict:
         """Отправляет email через Gmail API."""
         try:
-            gmail.users().messages().send(userId='me', body=message_body).execute()
+            return gmail.users().messages().send(userId='me', body=message_body).execute()
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

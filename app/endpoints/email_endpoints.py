@@ -11,6 +11,7 @@ from app.services.user_service import UserService
 from app.services.open_ai_service import OpenAIService
 from app.services.oauth_service import OAuthCredentialsService
 from app.services.assistant_profile_service import AssistantProfileService
+from app.services.gmail_thread_service import GmailThreadService
 
 # Schemas
 from app.schemas.email_thread_schema import EmailThreadCreate
@@ -39,7 +40,7 @@ async def create_thread(
     open_ai_thread_service: OpenAiThreadService = Depends(OpenAiThreadService.get_instance),
     oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
     assistant_service: AssistantProfileService = Depends(AssistantProfileService.get_instance),
-    
+    gmail_thread_service: GmailThreadService = Depends(GmailThreadService.get_instance),
 ):
     try:
         # Получаем текущего пользователя
@@ -76,6 +77,8 @@ async def create_thread(
             instructions="Сгенерируй приветственное письмо..."
         )
 
+        initial_message = "Привет! Я - ваш ассистент. Как я могу помочь?"
+
         # Формируем тело email
         message_body = open_ai_thread_service.compose_email_body(
             oauth_creds.email, 
@@ -87,7 +90,9 @@ async def create_thread(
         gmail = await gmail_service.create_gmail_service(oauth_creds)
 
         # Отправляем email
-        await gmail_service.send_email(gmail, message_body)
+        gmail_response = await gmail_service.send_email(gmail, message_body)
+
+        # print(f"response: {response['threadId']}")
 
         # Сохраняем assistant
         await assistant_service.create_assistant_profile(
@@ -105,6 +110,14 @@ async def create_thread(
             recipient_email=thread_data.recipient_email, 
             recipient_name=thread_data.recipient_name,
             sender_email=oauth_creds.email
+        )
+
+        # Создаем gmail_thread
+        await gmail_thread_service.create_gmail_thread(
+            gmail_thread_id=gmail_response['threadId'],
+            user_id=current_user.id,
+            open_ai_thread_id=openai_thread_id,
+            recipient_name=thread_data.recipient_name
         )
 
         return {"status": "success", "message": "Thread created successfully"}

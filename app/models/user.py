@@ -21,6 +21,9 @@ class User(Base):
         back_populates="user",
         uselist=True
     )
+
+    # Один пользователь может иметь много gmail_threads
+    gmail_threads = relationship("GmailThread", back_populates="user")
     
     # Один пользователь может иметь много ассистентов
     assistants = relationship("AssistantProfile", back_populates="user")
