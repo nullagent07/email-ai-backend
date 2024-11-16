@@ -26,12 +26,10 @@ from app.schemas.email_thread_schema import EmailThreadCreate
 
 
 from uuid import UUID
-
+import re
 from typing import Any
 import json
-import httpx
 from google.oauth2 import id_token
-from google.auth.transport import requests
 from google.auth.transport.requests import Request
 
 from google_auth_oauthlib.flow import InstalledAppFlow, Flow
@@ -193,6 +191,13 @@ class GmailService:
         else:
             print("Невозможно определить тип сообщения.")
             return {"status": "success", "message": "Outgoing message"}
+        
+        # Шаблон для извлечения адреса электронной почты
+        email_pattern = r'<([^>]+)>'
+
+        # Извлечение адресов
+        from_email = re.search(email_pattern, from_address).group(1)
+        to_email = re.search(email_pattern, to_address).group(1)
 
         # Получаем данные
         if 'data' in payload.get('body', {}):
