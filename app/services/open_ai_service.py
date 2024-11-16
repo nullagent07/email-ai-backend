@@ -6,7 +6,7 @@ import asyncio
 from app.models.assistant_profile import AssistantProfile
 import httpx
 from app.schemas.email_thread_schema import EmailThreadCreate
-
+from app.models.open_ai_thread import ThreadStatus
 
 settings = get_app_settings()
 
@@ -19,6 +19,10 @@ class OpenAIService:
     def get_instance(cls) -> 'OpenAIService':
         return cls()
         
+
+    async def get_thread_status(self, thread_id: str) -> str:
+        return await self.client.beta.threads.retrieve(thread_id)
+    
     async def setup_assistant(self, recipient_name: str) -> str:
         """Создает и настраивает ассистента OpenAI для пользователя."""
         return await self.create_assistant(
@@ -174,7 +178,12 @@ class OpenAIService:
             assistant_id=assistant_id
         )
         return run.id
-        
+
+    async def get_thread_message_list(self, thread_id: str) -> Optional[List[str]]:
+        """Получает список сообщений из треда"""
+        messages = await self.client.beta.threads.messages.list(thread_id)
+        return [message.id for message in messages.data]
+
     async def get_response(self, thread_id: str, run_id: str) -> Optional[str]:
         """Получает ответ ассистента после выполнения run"""
         run_status = await self.client.beta.threads.runs.retrieve(
@@ -185,14 +194,12 @@ class OpenAIService:
         if run_status.status != 'completed':
             return None
             
-        messages = await self.client.beta.threads.messages.list(
-            thread_id=thread_id
-        )
+        messages = await self.get_thread_message_list(thread_id)
         
-        if not messages.data:
+        if not messages:
             return None
             
-        return messages.data[0].content[0].text.value
+        return messages[0].content[0].text.value
 
     async def run_thread(
         self, 

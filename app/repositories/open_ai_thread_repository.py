@@ -24,7 +24,7 @@ class OpenAiThreadRepository:
         return result.scalars().first()
     
     async def get_assistant_id_by_thread_id(self, thread_id: int) -> Optional[str]:
-        result = await self.db.execute(
+        result = await self.db.execute(  
             select(OpenAiThread.assistant_id).filter(OpenAiThread.id == thread_id)
         )
         return result.scalars().first()

@@ -62,17 +62,17 @@ async def create_thread(
         assistant_id = await open_ai_service.setup_assistant(thread_data.recipient_name)
 
         # Создание тред в OpenAI
-        openai_thread_id = await open_ai_service.create_thread()
+        open_ai_thread_id = await open_ai_service.create_thread()
         
         # Добавляем начальное сообщение в тред
         await open_ai_service.add_message_to_thread(
-            thread_id=openai_thread_id,
+            thread_id=open_ai_thread_id,
             content=f"Это начало email переписки с {thread_data.recipient_name}..."
         )
 
         # Запускаем тред
         initial_message = await open_ai_service.run_thread(
-            thread_id=openai_thread_id,
+            thread_id=open_ai_thread_id,
             assistant_id=assistant_id,
             instructions="Сгенерируй приветственное письмо..."
         )
@@ -101,7 +101,7 @@ async def create_thread(
 
         # Сохранение данных thread
         await open_ai_thread_service.create_thread(
-            id=openai_thread_id, 
+            id=open_ai_thread_id, 
             user_id=current_user.id, 
             description=thread_data.assistant, 
             assistant_id=assistant_id, 
@@ -114,7 +114,7 @@ async def create_thread(
         await gmail_thread_service.create_gmail_thread(
             gmail_thread_id=gmail_response['threadId'],
             user_id=current_user.id,
-            open_ai_thread_id=openai_thread_id,
+            open_ai_thread_id=open_ai_thread_id,
             recipient_email=thread_data.recipient_email
         )
 
@@ -149,7 +149,7 @@ async def gmail_webhook(
                 detail="Недействительный токен авторизации"
             )
     
-        # Получаем email и historyId
+        # Получаем email
         user_email = await gmail_service.extract_user_email_from_pubsub_request(request)
         
         # Получаем oauth_creds
@@ -164,7 +164,7 @@ async def gmail_webhook(
             }
 
         # Получаем payload, headers и parts
-        payload, headers, parts = await gmail_service.get_payload_and_headers_and_parts(oauth_creds)
+        payload, headers, parts, gmail_thread_id = await gmail_service.get_payload_and_headers_and_parts(oauth_creds)
 
         # Определяем, является ли сообщение входящим или исходящим
         inbox = await gmail_service.validate_inbox_or_outbox(headers, user_email)
@@ -187,40 +187,40 @@ async def gmail_webhook(
         print(f"from_email: {from_email}")
 
         # Определение треда с пользователем
-        thread_id = await open_ai_thread_service.get_thread_id_by_user_id_and_recipient_email(oauth_creds.user_id, recipient_email=from_email)
+        open_ai_thread_id = await open_ai_thread_service.get_thread_id_by_user_id_and_recipient_email(oauth_creds.user_id, recipient_email=from_email)
 
-        if thread_id is None:
+        # # опеределяет асситент тред по gmail_thread_id и user_id и recipient_email
+        # thread_id = await open_ai_thread_service.get_thread_id_by_user_id_and_recipient_email(oauth_creds.user_id, recipient_email=from_email)
+
+        if open_ai_thread_id is None:
             return {"status": "success", "message": "Thread not found"}
         
         # добавить сообщение в openai_thread
         await open_ai_service.add_message_to_thread(
-            thread_id=thread_id,
+            thread_id=open_ai_thread_id,
             content=body_data
         )
 
         # получить ассистент
-        assistant_id = await open_ai_thread_service.get_assistant_id_by_thread_id(thread_id)
+        assistant_id = await open_ai_thread_service.get_assistant_id_by_thread_id(open_ai_thread_id)
 
-        #запустить тред
-        assistant_response = await open_ai_service.run_thread(
-            thread_id=thread_id,
-            assistant_id=assistant_id
-        )
+        # запустить тред
+        thread_response = await open_ai_service.run_thread(thread_id=open_ai_thread_id, assistant_id=assistant_id)
 
-        # отправить ответ
+        if thread_response is None:
+            return {"status": "success", "message": "Thread response not found"}
+
+        # создать gmail сервис
         gmail = await gmail_service.create_gmail_service(oauth_creds)
 
         # сформировать email
-        email_body = open_ai_thread_service.compose_email_body(sender_email=user_email, recipient_email=from_email, content=assistant_response)
+        email_body = open_ai_thread_service.compose_email_body(sender_email=user_email, recipient_email=from_email, content=thread_response)
 
         # отправить email
-        await gmail_service.send_email(gmail, email_body)
+        await gmail_service.send_email(gmail, email_body, thread_id=gmail_thread_id)
 
         return {"status": "success", "message": "History received"}
 
     except Exception as e:
         print(f"Ошибка при обработке уведомления: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось обработать уведомление: {str(e)}"
-        )
+        return {"status": "success", "message": "Error"}

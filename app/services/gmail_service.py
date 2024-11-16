@@ -25,7 +25,7 @@ import base64
 import re
 from typing import Any
 import json
-from typing import Union
+from typing import Union, Optional
 
 settings = get_app_settings()
 
@@ -74,9 +74,11 @@ class GmailService:
         })
         return build('gmail', 'v1', credentials=creds)
 
-    async def send_email(self, gmail, message_body) -> dict:
+    async def send_email(self, gmail, message_body, thread_id: Optional[str] = None) -> dict:
         """Отправляет email через Gmail API."""
         try:
+            if thread_id:
+                message_body['threadId'] = thread_id  # Включаем threadId в тело сообщения
             return gmail.users().messages().send(userId='me', body=message_body).execute()
         except Exception as e:
             raise HTTPException(
@@ -130,7 +132,7 @@ class GmailService:
         
         return email_data.get('emailAddress')
 
-    async def get_payload_and_headers_and_parts(self, oauth_creds: OAuthCredentials) -> tuple[list[dict], list[dict], list[dict]]: 
+    async def get_payload_and_headers_and_parts(self, oauth_creds: OAuthCredentials) -> tuple[list[dict], list[dict], list[dict], str]: 
         """Получает последнее сообщение"""
         # Создаем gmail сервис
         gmail = await self.create_gmail_service(oauth_creds)
@@ -140,11 +142,17 @@ class GmailService:
 
         # Формируем массив сообщений
         messages = results.get('messages', [])
-
+        if not messages:
+            raise print("No messages found")
+        
         # Получаем последнее сообщение
         last_msg_id = messages[0]['id']  
         message = gmail.users().messages().get(userId='me', id=last_msg_id, format='full').execute()
-
+        # Извлекаем thread_id
+        gmail_thread_id = message.get('threadId')
+        if not gmail_thread_id:
+            raise print("Thread ID not found")
+        
         # Получаем payload
         payload = message.get('payload', {})
 
@@ -155,7 +163,7 @@ class GmailService:
         parts = payload.get('parts', [])
 
         # Получаем части
-        return payload, headers, parts
+        return payload, headers, parts, gmail_thread_id
     
     def normalize_email(self, email):
         """Приведение email к нормальному виду"""
