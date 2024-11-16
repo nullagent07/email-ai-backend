@@ -44,10 +44,6 @@ def get_application() -> FastAPI:
 
     application.include_router(routers, prefix=settings.api_prefix)
 
-    # static_dir = Path("static")
-    # if static_dir.is_dir():
-    #     application.mount("/health_tracker/static", StaticFiles(directory="static"), name="static")
-
     application.add_exception_handler(RequestValidationError, custom_validation_exception_handler)  # type: ignore
     application.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
     application.add_exception_handler(Exception, all_exception_handler)  # type: ignore

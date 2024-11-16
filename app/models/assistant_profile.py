@@ -12,7 +12,7 @@ class AssistantProfile(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Один ассистент может иметь много тредов
-    threads = relationship("EmailThread", back_populates="assistant")
+    threads = relationship("OpenAiThread", back_populates="assistant")
     
     # Связь с пользователем
     user = relationship("User", back_populates="assistants")

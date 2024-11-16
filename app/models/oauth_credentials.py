@@ -21,7 +21,7 @@ class OAuthCredentials(Base):
     # Связь с User
     user = relationship("User", back_populates="oauth_credentials")
     
-    # Добавим составной уникальный индекс
+    # У одного user_id может быть только один экземпляр с конкретным provider
     __table_args__ = (
         UniqueConstraint('user_id', 'provider', name='uq_user_provider'),
     )

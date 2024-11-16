@@ -3,9 +3,10 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from core.config import get_app_settings, get_settings_no_cache
 from models.user import Base
-from models.email_thread import EmailThread
+from app.models.open_ai_thread import EmailThread
 from models.oauth_credentials import OAuthCredentials
 from models.assistant_profile import AssistantProfile
+from models.gmail_thread import GmailThread
 
 # Получение настроек приложения
 app_settings = get_app_settings()

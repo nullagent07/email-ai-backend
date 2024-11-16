@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.assistant_profile import AssistantProfile
-from app.models.email_thread import EmailThread
+from app.models.open_ai_thread import OpenAiThread
 from typing import Optional, List
 from uuid import UUID
 

@@ -2,17 +2,6 @@
 from app.core.dependency import get_db
 from app.core.config import get_app_settings
 
-# services
-from app.services.openai_service import OpenAIService
-from app.services.oauth_service import OAuthCredentialsService
-from app.services.token_service import TokenService
-
-# repositories
-from app.repositories.assistant_profile_repository import AssistantProfileRepository
-from app.repositories.oauth_credentials_repository import OAuthCredentialsRepository
-from app.repositories.email_thread_repository import EmailThreadRepository
-from app.repositories.user_repository import UserRepository
-
 # models
 from app.models.oauth_credentials import OAuthCredentials
 
@@ -41,13 +30,6 @@ settings = get_app_settings()
 class GmailService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.oauth_repo = OAuthCredentialsRepository(db)
-        self.oauth_service = OAuthCredentialsService(db)
-        self.thread_repo = EmailThreadRepository(db)
-        self.assistant_repo = AssistantProfileRepository(db)
-        self.openai_service = OpenAIService()
-        self.user_repository = UserRepository(db)
-        self.token_service = TokenService()
 
     @classmethod
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'GmailService':

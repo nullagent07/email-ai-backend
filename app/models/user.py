@@ -15,11 +15,11 @@ class User(Base):
     password_hash = Column(String, nullable=True)
     is_subscription_active = Column(Boolean, default=False)
     
-    # uselist=False означает one-to-one отношение
+    # Один пользователь может иметь много oauth_credentials
     oauth_credentials = relationship(
         "OAuthCredentials", 
         back_populates="user",
-        uselist=False
+        uselist=True
     )
     
     # Один пользователь может иметь много ассистентов

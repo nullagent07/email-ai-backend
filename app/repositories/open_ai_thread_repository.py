@@ -2,58 +2,58 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List, Optional
-from app.models.email_thread import EmailThread, ThreadStatus
+from app.models.open_ai_thread import OpenAiThread, ThreadStatus
 from sqlalchemy import and_, or_, exists
 from app.models.user import User
 
-class EmailThreadRepository:
+class OpenAiThreadRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_thread_by_id(self, thread_id: int) -> Optional[EmailThread]:
+    async def get_thread_by_id(self, thread_id: int) -> Optional[OpenAiThread]:
         result = await self.db.execute(
-            select(EmailThread).filter(EmailThread.id == thread_id)
+            select(OpenAiThread).filter(OpenAiThread.id == thread_id)
         )
         return result.scalars().first()
 
-    async def get_threads_by_user_id(self, user_id: int) -> List[EmailThread]:
+    async def get_threads_by_user_id(self, user_id: int) -> List[OpenAiThread]:
         result = await self.db.execute(
-            select(EmailThread).filter(EmailThread.user_id == user_id)
+            select(OpenAiThread).filter(OpenAiThread.user_id == user_id)
         )
         return result.scalars().all()
     
     async def has_active_thread_with_recipient_email(self, user_id: int, recipient_email: str) -> bool:
         result = await self.db.execute(
-            select(EmailThread).filter(
+            select(OpenAiThread).filter(
                 and_(
-                    EmailThread.user_id == user_id,
-                    EmailThread.recipient_email == recipient_email,
-                    EmailThread.status == ThreadStatus.ACTIVE
+                    OpenAiThread.user_id == user_id,
+                    OpenAiThread.recipient_email == recipient_email,
+                    OpenAiThread.status == ThreadStatus.ACTIVE
                 )
             )
         )
         return result.scalars().first() is not None
 
-    async def create_thread(self, email_thread: EmailThread) -> EmailThread:
+    async def create_thread(self, email_thread: OpenAiThread) -> OpenAiThread:
         self.db.add(email_thread)
         await self.db.commit()
         await self.db.refresh(email_thread)
         return email_thread
 
-    async def update_thread(self, email_thread: EmailThread) -> EmailThread:
+    async def update_thread(self, email_thread: OpenAiThread) -> OpenAiThread:
         await self.db.merge(email_thread)
         await self.db.commit()
         return email_thread
 
-    async def delete_thread(self, email_thread: EmailThread):
+    async def delete_thread(self, email_thread: OpenAiThread):
         await self.db.delete(email_thread)
         await self.db.commit()
 
-    async def get_threads_by_status(self, user_id: int, status: ThreadStatus) -> List[EmailThread]:
+    async def get_threads_by_status(self, user_id: int, status: ThreadStatus) -> List[OpenAiThread]:
         result = await self.db.execute(
-            select(EmailThread).filter(
-                EmailThread.user_id == user_id,
-                EmailThread.status == status
+            select(OpenAiThread).filter(
+                OpenAiThread.user_id == user_id,
+                OpenAiThread.status == status
             )
         )
         return result.scalars().all()
@@ -62,30 +62,30 @@ class EmailThreadRepository:
         self,
         sender_email: str,
         recipient_email: str
-    ) -> Optional[EmailThread]:
+    ) -> Optional[OpenAiThread]:
         """
         Поиск активного треда по email отправителя и получателя
         """
-        query = select(EmailThread).where(
+        query = select(OpenAiThread).where(
             and_(
-                EmailThread.status == ThreadStatus.ACTIVE,
+                OpenAiThread.status == ThreadStatus.ACTIVE,
                 or_(
                     and_(
-                        EmailThread.recipient_email == recipient_email,
+                        OpenAiThread.recipient_email == recipient_email,
                         # Проверяем, что отправитель совпадает с владельцем треда
                         exists().where(
                             and_(
-                                User.id == EmailThread.user_id,
+                                User.id == OpenAiThread.user_id,
                                 User.email == sender_email
                             )
                         )
                     ),
                     and_(
-                        EmailThread.recipient_email == sender_email,
+                        OpenAiThread.recipient_email == sender_email,
                         # Проверяем, что получатель совпадает с владельцем треда
                         exists().where(
                             and_(
-                                User.id == EmailThread.user_id,
+                                User.id == OpenAiThread.user_id,
                                 User.email == recipient_email
                             )
                         )

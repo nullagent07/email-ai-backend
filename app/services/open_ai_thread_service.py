@@ -1,10 +1,10 @@
 # app/services/email_service.py
 
 # repositories
-from app.repositories.email_thread_repository import EmailThreadRepository
+from app.repositories.open_ai_thread_repository import OpenAiThreadRepository
 
 # models
-from app.models.email_thread import EmailThread, ThreadStatus
+from app.models.open_ai_thread import OpenAiThread, ThreadStatus
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
@@ -14,13 +14,13 @@ from app.core.dependency import get_db
 from uuid import UUID
 from typing import Optional
 
-class EmailThreadService:
+class OpenAiThreadService:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.thread_repo = EmailThreadRepository(db)
+        self.thread_repo = OpenAiThreadRepository(db)
 
     @classmethod
-    def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'EmailThreadService':
+    def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'OpenAiThreadService':
         return cls(db)
     
     async def create_thread(self, 
@@ -32,11 +32,11 @@ class EmailThreadService:
                             sender_email: str,
                             recipient_name: Optional[str] = None,
                             sender_name: Optional[str] = None
-                            ) -> EmailThread:
+                            ) -> OpenAiThread:
         """Создает новый email-тред в базе данных."""
         
         # Создаем новый тред
-        new_thread = EmailThread(
+        new_thread = OpenAiThread(
             id=id, 
             user_id=user_id, 
             description=description, 
@@ -49,18 +49,18 @@ class EmailThreadService:
         
         return await self.thread_repo.create_thread(new_thread)
     
-    # Методы для EmailThread
-    async def get_user_threads(self, user_id: int) -> List[EmailThread]:
+    # Методы для OpenAiThread
+    async def get_user_threads(self, user_id: int) -> List[OpenAiThread]:
         return await self.thread_repo.get_threads_by_user_id(user_id)
 
-    async def close_email_thread(self, thread_id: int) -> EmailThread:
+    async def close_email_thread(self, thread_id: int) -> OpenAiThread:
         thread = await self.thread_repo.get_thread_by_id(thread_id)
         if not thread:
             raise ValueError("Thread not found")
         thread.status = ThreadStatus.CLOSED
         return await self.thread_repo.update_thread(thread)
 
-    async def get_threads_by_status(self, user_id: int, status: ThreadStatus) -> List[EmailThread]:
+    async def get_threads_by_status(self, user_id: int, status: ThreadStatus) -> List[OpenAiThread]:
         return await self.thread_repo.get_threads_by_status(user_id, status)
 
     def compose_email_body(self, sender_email: str, recipient_email: str, content: str) -> dict:

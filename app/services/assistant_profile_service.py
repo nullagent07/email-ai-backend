@@ -1,6 +1,4 @@
 from app.models.assistant_profile import AssistantProfile
-from app.schemas.email_thread_schema import EmailThreadCreate
-from app.repositories.email_thread_repository import EmailThreadRepository
 from app.repositories.assistant_profile_repository import AssistantProfileRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_app_settings
@@ -12,7 +10,6 @@ settings = get_app_settings()
 class AssistantProfileService:
     def __init__(self, db: AsyncSession):
         self.assistant_repo = AssistantProfileRepository(db)
-        self.thread_repo = EmailThreadRepository(db)
     
     @classmethod
     def get_instance(cls, db: AsyncSession = Depends(get_db)) -> 'AssistantProfileService':

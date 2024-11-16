@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # services
-from app.services.email_thread_service import EmailThreadService
+from app.services.open_ai_thread_service import OpenAiThreadService
 from app.services.gmail_service import GmailService
 from app.services.user_service import UserService
 from app.services.openai_service import OpenAIService
@@ -28,7 +28,7 @@ from app.core.config import settings
 router = APIRouter(prefix="/email", tags=["email"])
 
 # Эндпоинт для создания нового email-потока
-# @router.post("/gmail/threads/", response_model=EmailThreadResponse)
+# @router.post("/gmail/threads/", response_model=OpenAiThreadResponse)
 @router.post("/gmail/threads/", status_code=status.HTTP_201_CREATED)
 async def create_thread(
     request: Request,
@@ -36,7 +36,7 @@ async def create_thread(
     user_service: UserService = Depends(UserService.get_instance),    
     openai_service: OpenAIService = Depends(OpenAIService.get_instance),
     gmail_service: GmailService = Depends(GmailService.get_instance),
-    email_thread_service: EmailThreadService = Depends(EmailThreadService.get_instance),
+    email_thread_service: OpenAiThreadService = Depends(OpenAiThreadService.get_instance),
     oauth_service: OAuthCredentialsService = Depends(OAuthCredentialsService.get_instance),
     assistant_service: AssistantProfileService = Depends(AssistantProfileService.get_instance),
 ):
@@ -165,8 +165,6 @@ async def gmail_webhook(
         from_email, to_email = inbox
 
         print(f"from_email: {from_email}, to_email: {to_email}")
-
-
 
         # Получаем данные из payload
         body_data = await gmail_service.get_body_data_from_payload(payload, parts)
