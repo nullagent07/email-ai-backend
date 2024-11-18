@@ -14,6 +14,11 @@ from fastapi import FastAPI
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from app.core.logger import setup_logging
+from app.core.middleware import RateLimitMiddleware, LoggingMiddleware, ErrorHandlingMiddleware
+from app.core.exceptions import EmailAssistantException
+from app.core.error_handlers import email_assistant_exception_handler, general_exception_handler
+from fastapi.middleware.cors import CORSMiddleware
 
 
 def get_application() -> FastAPI:
@@ -28,11 +33,10 @@ def get_application() -> FastAPI:
     application = FastAPI(
         **settings.model_dump(),
         separate_input_output_schemas=False,
+        title="Email Assistant API"
     )
 
     if settings.allowed_hosts:
-        from fastapi.middleware.cors import CORSMiddleware
-
         application.add_middleware(
             CORSMiddleware,
             # allow_origins=settings.allowed_hosts,
@@ -44,12 +48,19 @@ def get_application() -> FastAPI:
 
     application.include_router(routers, prefix=settings.api_prefix)
 
+    application.add_middleware(RateLimitMiddleware, rate_limit_per_second=10)
+    application.add_middleware(LoggingMiddleware)
+    application.add_middleware(ErrorHandlingMiddleware)
+
     application.add_exception_handler(RequestValidationError, custom_validation_exception_handler)  # type: ignore
     application.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
-    application.add_exception_handler(Exception, all_exception_handler)  # type: ignore
     application.add_exception_handler(StarletteHTTPException, starlette_http_exception_handler)  # type: ignore
+    application.add_exception_handler(Exception, all_exception_handler)  # type: ignore
+    application.add_exception_handler(EmailAssistantException, email_assistant_exception_handler)
+    application.add_exception_handler(Exception, general_exception_handler)
 
     return application
 
 
+logger = setup_logging()
 app = get_application()

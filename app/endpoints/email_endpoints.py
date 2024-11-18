@@ -91,6 +91,13 @@ async def create_thread(
         # Отправляем email
         gmail_response = await gmail_service.send_email(gmail, message_body)
 
+        # Проверяем, есть ли активный watch 
+        is_watch_active = await gmail_service.is_watch_active(oauth_creds)
+
+        if not is_watch_active:
+        # Создаем watch
+            await gmail_service.create_watch(oauth_creds)
+
         # Сохраняем assistant
         await assistant_service.create_assistant_profile(
             assistant_id=assistant_id, 

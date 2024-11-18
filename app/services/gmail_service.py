@@ -133,7 +133,7 @@ class GmailService:
         
         return email_data.get('emailAddress')
 
-    async def get_payload_and_headers_and_parts(self, oauth_creds: OAuthCredentials) -> tuple[list[dict], list[dict], list[dict], str, str]: 
+    async def get_payload_and_headers_and_parts(self, oauth_creds: OAuthCredentials) -> tuple[list[dict], list[dict], list[dict], str, str, str]: 
         """Получает последнее сообщение"""
         # Создаем gmail сервис
         gmail = await self.create_gmail_service(oauth_creds)
@@ -174,19 +174,10 @@ class GmailService:
 
         # Получаем части
         return payload, headers, parts, gmail_thread_id, message_id_header, subject
-    
-    def normalize_email(self, email):
-        """Приведение email к нормальному виду"""
-        # Приведение к нижнему регистру
-        email = email.lower()
-        # Разделяем локальную и доменную части
-        local, domain = email.split('@', 1)
-        # Удаляем точки только для Gmail
-        if 'gmail.com' in domain:
-            local = local.replace('.', '')
-        return f"{local}@{domain}"
 
-    async def validate_inbox_or_outbox(self, headers: list[dict], user_email: str) -> Union[tuple[str, str], None]:
+    async def validate_inbox_or_outbox(self, 
+                                       headers: list[dict], 
+                                       user_email: str) -> Union[tuple[str, str], None]:
         """Определяет, является ли сообщение входящим или исходящим"""
 
         # Инициализация адресов
@@ -243,7 +234,9 @@ class GmailService:
             print(f"Ошибка при обработке email-адресов: {str(e)}")
             return None
         
-    async def get_body_data_from_payload(self, payload: list[dict], parts: list[dict]) -> Union[str, None]:
+    async def get_body_data_from_payload(self,
+                                        payload: list[dict], 
+                                        parts: list[dict]) -> Union[str, None]:
         """Получает данные из payload"""
         # Получаем данные
         if 'data' in payload.get('body', {}):
@@ -290,3 +283,54 @@ class GmailService:
             body['threadId'] = thread_id
 
         return body
+    
+    async def is_watch_active(self, oauth_creds: OAuthCredentials) -> bool:
+        """Проверяет, есть ли активный watch для конкретного пользователя в Google проекте."""
+        try:
+            if not oauth_creds:
+                raise ValueError("OAuth credentials not found for the user")
+
+            # Создаем Gmail сервис
+            gmail = await self.create_gmail_service(oauth_creds)
+
+            # Получаем информацию о текущем watch
+            watch_response = gmail.users().watch().get(userId='me').execute()
+
+            # Проверяем наличие активного watch
+            return bool(watch_response.get('historyId'))
+
+        except Exception as e:
+            print(f"Error checking watch status for {oauth_creds.email}: {e}")
+            return False
+    
+    async def create_watch(self, oauth_creds: OAuthCredentials) -> None:
+        """Создает watch для пользователя, если он не активен."""
+        try:
+            # Создаем Gmail сервис
+            gmail = await self.create_gmail_service(oauth_creds)
+
+            # Настраиваем watch запрос
+            watch_request = {
+                'labelIds': ['INBOX'],
+                'topicName': f'projects/{settings.google_project_id}/topics/{settings.google_topic_id}'
+            }
+
+            # Отправляем watch запрос
+            gmail.users().watch(userId='me', body=watch_request).execute()
+            print(f"Watch успешно создан для {oauth_creds.email}")
+
+        except Exception as e:
+            print(f"Ошибка при создании watch для {oauth_creds.email}: {e}")
+
+    async def delete_watch(self, oauth_creds: OAuthCredentials) -> None:
+        """Удаляет watch для кон��ретного пользователя."""
+        try:
+            # Создаем Gmail сервис
+            gmail = await self.create_gmail_service(oauth_creds)
+
+            # Отправляем запрос на удаление watch
+            gmail.users().stop(userId='me').execute()
+            print(f"Watch успешно удален для {oauth_creds.email}")
+
+        except Exception as e:
+            print(f"Ошибка при удалении watch для {oauth_creds.email}: {e}")
