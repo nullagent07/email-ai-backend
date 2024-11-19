@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     algorithm: str
 
     frontend_url: str = "http://localhost:3000"  # URL вашего фронтенда
+    google_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"  # URL для перенаправления после авторизации
     cookie_domain: str = "localhost:3000 "  # Домен для кук
 
     # OpenAI settings

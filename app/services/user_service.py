@@ -61,25 +61,44 @@ class UserService:
     async def get_current_user(self, request: Request) -> Optional[User]:
         # Получаем токен из куков
         access_token_cookie = request.cookies.get("access_token")
+        logger.info(f"Got access token from cookie: {access_token_cookie}")
         
-        if not access_token_cookie or not access_token_cookie.startswith("Bearer "):
+        if not access_token_cookie:
+            logger.warning("No access token in cookies")
+            return None
+            
+        if not access_token_cookie.startswith("Bearer "):
+            logger.warning("Token doesn't start with Bearer")
             return None
             
         token = access_token_cookie.split(" ")[1]
+        logger.info("Successfully extracted token")
 
         # Проверяем токен и получаем пользователя
         try:
             payload = self.token_service.verify_token(token)
             if not payload:
+                logger.warning("Invalid token payload")
                 return None
                 
             user_id = payload.get("sub")
             if not user_id:
+                logger.warning("No user_id in token payload")
                 return None
 
+            user = await self.user_repository.get_user_by_id(UUID(user_id))
+            logger.info(f"Found user: {user.email if user else None}")
+            return user
+        except Exception as e:
+            logger.error(f"Error verifying token: {str(e)}")
+            return None
+
+    async def get_user_by_id(self, user_id: str) -> Optional[User]:
+        try:
             return await self.user_repository.get_user_by_id(UUID(user_id))
         except Exception:
             return None
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
+        """Получает пользователя по email"""
         return await self.user_repository.get_user_by_email(email)

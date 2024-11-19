@@ -1,4 +1,4 @@
-# app/endpoints/auth_endpoints.py
+# app/endpoints/user_endpoint.py
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from app.services.user_service import UserService
@@ -16,10 +16,12 @@ async def get_current_user_info(
         
         if not current_user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
             )
         return current_user
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -39,13 +39,13 @@ def get_application() -> FastAPI:
     if settings.allowed_hosts:
         application.add_middleware(
             CORSMiddleware,
-            # allow_origins=settings.allowed_hosts,
             allow_origins=["http://localhost:3000"],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=["Set-Cookie", "*"],  # Явно указываем Set-Cookie
+            max_age=3600
         )
-
     application.include_router(routers, prefix=settings.api_prefix)
 
     application.add_middleware(RateLimitMiddleware, rate_limit_per_second=10)
