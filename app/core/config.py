@@ -8,6 +8,11 @@ import os
 load_dotenv()
 
 class Settings(BaseSettings):
+    # Application settings
+    PROJECT_NAME: str = "Email Assistant API"
+    VERSION: str = "1.0.0"
+    DEBUG: bool = True
+
     # Существующие настройки
     pg_username: str
     pg_password: str

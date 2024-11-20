@@ -1,27 +1,79 @@
 import logging
+import sys
+from pathlib import Path
+from logging.handlers import RotatingFileHandler
+import colorama
 
-from pythonjsonlogger import jsonlogger
+# Initialize colorama for cross-platform colored output
+colorama.init()
 
-def setup_json_logging() -> None:
-    """Set up JSON logging."""
-    logging.getLogger().handlers.clear()  # Очистка существующих обработчиков
+class ColorFormatter(logging.Formatter):
+    """Custom formatter with colors"""
+    
+    # Color codes
+    grey = "\x1b[38;21m"
+    blue = "\x1b[38;5;39m"
+    yellow = "\x1b[38;5;226m"
+    red = "\x1b[38;5;196m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
 
-    formatter = jsonlogger.JsonFormatter(
-        fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+    def __init__(self):
+        super().__init__()
+        self.fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+        
+        self.FORMATS = {
+            logging.DEBUG: self.grey + self.fmt + self.reset,
+            logging.INFO: self.blue + self.fmt + self.reset,
+            logging.WARNING: self.yellow + self.fmt + self.reset,
+            logging.ERROR: self.red + self.fmt + self.reset,
+            logging.CRITICAL: self.bold_red + self.fmt + self.reset
+        }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt, datefmt="%Y-%m-%d %H:%M:%S")
+        return formatter.format(record)
+
+def setup_logging(log_level: str = "INFO") -> logging.Logger:
+    """Set up logging with colors and rotation."""
+    # Create logs directory if it doesn't exist
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+
+    # Clear existing handlers
+    logging.getLogger().handlers.clear()
+
+    # Setup console handler with colors
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(ColorFormatter())
+
+    # Setup rotating file handler (without colors)
+    file_handler = RotatingFileHandler(
+        "logs/app.log",
+        maxBytes=500 * 1024 * 1024,  # 500 MB
+        backupCount=10,  # Keep 10 backup files
+    )
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
     )
 
-    log_handler = logging.StreamHandler()
-    log_handler.setFormatter(formatter)
-
-    # Отключение наследования обработчиков для логгеров "uvicorn"
-    logging.getLogger("uvicorn").propagate = False
-    logging.getLogger("uvicorn.access").propagate = False
-    logging.getLogger("uvicorn.error").propagate = False
-
-    # Установка обработчика и форматтера для логгеров "uvicorn" и "uvicorn.access"
-    for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error", "assistant"]:
+    # Configure loggers
+    loggers = ["uvicorn", "uvicorn.access", "uvicorn.error", "assistant"]
+    for logger_name in loggers:
         logger = logging.getLogger(logger_name)
-        logger.handlers.clear()  # Очистка существующих обработчиков, если они есть
-        logger.setLevel(logging.INFO)
-        logger.addHandler(log_handler)
+        logger.handlers.clear()
+        logger.setLevel(getattr(logging, log_level))
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
+        logger.propagate = False
+
+    # Get the main logger
+    main_logger = logging.getLogger("assistant")
+    return main_logger
+
+# Create a global logger instance
+logger = setup_logging()

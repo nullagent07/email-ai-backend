@@ -6,7 +6,9 @@ from typing import Callable
 import asyncio
 from fastapi.responses import JSONResponse
 from .exceptions import RateLimitError
-from .logger import logger
+from .logging_config import logger
+
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(

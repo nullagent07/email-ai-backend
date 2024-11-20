@@ -1,7 +1,7 @@
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from .exceptions import EmailAssistantException
-from .logger import logger
+from .logging_config import logger
 
 async def email_assistant_exception_handler(request: Request, exc: EmailAssistantException):
     """Handle custom exceptions"""
