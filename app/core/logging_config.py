@@ -8,35 +8,41 @@ import colorama
 colorama.init()
 
 class ColorFormatter(logging.Formatter):
-    """Custom formatter with colors"""
+    """Custom formatter with colors only for log level"""
     
     # Color codes
     grey = "\x1b[38;21m"
+    green = "\x1b[38;5;28m"
     blue = "\x1b[38;5;39m"
     yellow = "\x1b[38;5;226m"
     red = "\x1b[38;5;196m"
     bold_red = "\x1b[31;1m"
     reset = "\x1b[0m"
 
+    # Color mapping for different log levels
+    level_colors = {
+        logging.DEBUG: grey,
+        logging.INFO: green,
+        logging.WARNING: yellow,
+        logging.ERROR: red,
+        logging.CRITICAL: bold_red
+    }
+
     def __init__(self):
         super().__init__()
-        self.fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-        
-        self.FORMATS = {
-            logging.DEBUG: self.grey + self.fmt + self.reset,
-            logging.INFO: self.blue + self.fmt + self.reset,
-            logging.WARNING: self.yellow + self.fmt + self.reset,
-            logging.ERROR: self.red + self.fmt + self.reset,
-            logging.CRITICAL: self.bold_red + self.fmt + self.reset
-        }
+        self.fmt = "%(asctime)s | %(colored_levelname)s | %(message)s"
+        self.default_formatter = logging.Formatter(self.fmt, datefmt="%Y-%m-%d %H:%M:%S")
 
     def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt, datefmt="%Y-%m-%d %H:%M:%S")
-        return formatter.format(record)
+        # Add colored level name to the record
+        levelname = record.levelname
+        color = self.level_colors.get(record.levelno, self.reset)
+        record.colored_levelname = f"{color}{levelname:8}{self.reset}"
+        
+        return self.default_formatter.format(record)
 
 def setup_logging(log_level: str = "INFO") -> logging.Logger:
-    """Set up logging with colors and rotation."""
+    """Set up logging with colored level names and rotation."""
     # Create logs directory if it doesn't exist
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
@@ -56,7 +62,7 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
     )
     file_handler.setFormatter(
         logging.Formatter(
-            "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+            "%(asctime)s | %(levelname)-8s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
         )
     )
