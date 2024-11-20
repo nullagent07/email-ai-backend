@@ -149,10 +149,8 @@ async def google_callback(
             value=f"Bearer {access_token}",  
             httponly=True,
             secure=False,  
-            max_age=3600,  
-            path="/",
-            domain="localhost",  
-            samesite="lax"
+            max_age=3600,                          
+            # samesite="lax"
         )
         
         logger.info(f"Setting cookie: access_token={access_token[:10]}...")
