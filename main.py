@@ -4,11 +4,11 @@ from core.settings import get_app_settings
 settings = get_app_settings()
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    debug=settings.DEBUG,
+    title=settings.project_name,
+    version=settings.version,
+    debug=settings.debug,
 )
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "environment": settings.DEBUG}
+    return {"status": "ok", "environment": settings.debug}
