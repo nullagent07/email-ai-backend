@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 from pathlib import Path
 
@@ -6,11 +6,14 @@ from pathlib import Path
 root_dir = Path(__file__).parent.parent
 
 class BaseAppSettings(BaseSettings):
-    project_name: str = "FastAPI Project"
-    version: str = "1.0.0"
-    debug: bool = False
-    database_url: str
+    title: str = "Email Assistant"
+    version: str = "0.1.0"
+    summary: str = ""
+    description: str = ""
 
-    class Config:
-        env_file = root_dir / ".env"
-        extra = "allow"  # Разрешаем дополнительные поля
+    debug: bool = False
+
+    model_config = SettingsConfigDict(
+        env_file=os.getenv("ENV_FILE", ".env"),
+        extra="allow"  # Разрешаем дополнительные поля
+    )
