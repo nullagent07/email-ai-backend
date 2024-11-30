@@ -13,3 +13,4 @@ class BaseAppSettings(BaseSettings):
 
     class Config:
         env_file = root_dir / ".env"
+        extra = "allow"  # Разрешаем дополнительные поля
