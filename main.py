@@ -1,4 +1,10 @@
+from collections.abc import AsyncGenerator
+import logging
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -12,22 +18,73 @@ from core.exception_handler import (
 from core.settings import get_app_settings
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
-settings = get_app_settings()
+from app.presentation.endpoints import auth, health
+from core.logger import setup_json_logging
 
-app = FastAPI(
-    title=settings.title,
-    version=settings.version,
-    debug=settings.debug,
-)
+logger = logging.getLogger(__name__)
 
-# Регистрируем обработчики исключений
 
-app.add_exception_handler(RequestValidationError, custom_validation_exception_handler)  # type: ignore
-app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
-app.add_exception_handler(Exception, all_exception_handler)  # type: ignore
-app.add_exception_handler(StarletteHTTPException, starlette_http_exception_handler)  # type: ignore
+def create_app() -> FastAPI:
+    """
+    Создание и настройка приложения FastAPI.
+    """
+    settings = get_app_settings()
+    
+    # Инициализация приложения
+    app = FastAPI(
+        title=settings.title,
+        version=settings.version,
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
+        openapi_url="/api/openapi.json"
+    )
 
-# Подключаем роутеры
-app.include_router(health_router)
+    # Добавляем middleware для сессий до CORS middleware
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.secret_key,
+        max_age=3600,
+        same_site='lax',
+        https_only=False,
+        session_cookie='session',
+        path='/',
+    )
+
+    # Настройка CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Подключение роутов
+    api_router = FastAPI(prefix="/api")
+    api_router.include_router(health.router)
+    api_router.include_router(auth.router)
+    app.mount("/api", api_router)
+
+    app.add_exception_handler(RequestValidationError, custom_validation_exception_handler)  # type: ignore
+    app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
+    app.add_exception_handler(Exception, all_exception_handler)  # type: ignore
+    app.add_exception_handler(StarletteHTTPException, starlette_http_exception_handler)  # type: ignore
+
+    return app
+
+
+# Создание приложения на уровне модуля для uvicorn
+app = create_app()
+
+def main():
+    """
+    Точка входа в приложение.
+    """
+    # Настройка логирования
+    setup_json_logging()
+    
+    logger.info("Application startup complete")
+
+if __name__ == "__main__":
+    main()
