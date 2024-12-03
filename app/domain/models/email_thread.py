@@ -18,7 +18,7 @@ class EmailThread(Base):
     recipient_email: Mapped[str] = mapped_column(String(255))
     recipient_name: Mapped[Optional[str]] = mapped_column(String(255))
     assistant_profile_id: Mapped[str] = mapped_column(
-        ForeignKey("assistantprofile.id", ondelete="CASCADE")
+        ForeignKey("assistant_profile.id", ondelete="CASCADE")
     )
 
     # Отношения
