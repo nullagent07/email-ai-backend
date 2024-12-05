@@ -1,16 +1,25 @@
 from app.domain.models.oauth import OAuthCredentials
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 class OAuthRepository:
     """Репозиторий для работы с таблицей OAuth учетных данных."""
 
-    def add_credentials(self, credentials_data: dict) -> OAuthCredentials:
-        """Добавляет новые OAuth учетные данные в базу данных."""
-        # Здесь добавьте логику для добавления учетных данных в базу данных
-        print("Добавление OAuth учетных данных в базу данных:", credentials_data)
-        return OAuthCredentials(**credentials_data)
+    def __init__(self, db_session: AsyncSession) -> None:
+        self.db_session = db_session
 
-    def get_credentials_by_email(self, email: str) -> OAuthCredentials:
+    async def add_credentials(self, credentials_data: dict) -> OAuthCredentials:
+        """Добавляет новые OAuth учетные данные в базу данных."""
+        async with self.db_session.begin():
+            new_credentials = OAuthCredentials(**credentials_data)
+            self.db_session.add(new_credentials)
+            await self.db_session.commit()
+            return new_credentials
+
+    async def get_credentials_by_email(self, email: str) -> OAuthCredentials:
         """Получает OAuth учетные данные по email."""
-        # Здесь добавьте логику для получения учетных данных из базы данных
-        print("Получение OAuth учетных данных по email:", email)
-        return OAuthCredentials(email=email)
+        async with self.db_session.begin():
+            result = await self.db_session.execute(
+                select(OAuthCredentials).where(OAuthCredentials.email == email)
+            )
+            return result.scalar_one_or_none()

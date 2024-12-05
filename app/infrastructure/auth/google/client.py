@@ -5,7 +5,6 @@ from authlib.integrations.starlette_client import StarletteOAuth2App
 from starlette.requests import Request
 
 from app.infrastructure.auth.google.interface import IGoogleOAuthClient
-from core.dependency_injection import google_oauth_client
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 class AuthlibGoogleClient(IGoogleOAuthClient):
     """Реализация клиента Google OAuth с использованием Authlib."""
 
-    def __init__(self):
+    def __init__(self, google_oauth_client: StarletteOAuth2App = None):
         """Инициализация клиента."""
         self._client = google_oauth_client
 
@@ -53,6 +52,7 @@ class AuthlibGoogleClient(IGoogleOAuthClient):
                 'access_token': token['access_token'],
                 'refresh_token': token.get('refresh_token'),
                 'id_token': token.get('id_token'),
+                'expires_at': token['expires_at'],
                 'userinfo': userinfo
             }
         except Exception as e:

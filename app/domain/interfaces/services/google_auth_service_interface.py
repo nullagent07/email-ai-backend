@@ -2,9 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Dict
 from starlette.requests import Request
 
-
-class IAuthenticationService(ABC):
-    """Базовый интерфейс сервиса аутентификации."""
+class IGoogleAuthenticationService(ABC):
+    """Интерфейс для GoogleAuthenticationService."""
 
     @abstractmethod
     async def get_authorization_url(self, request: Request) -> str:
@@ -13,15 +12,7 @@ class IAuthenticationService(ABC):
 
     @abstractmethod
     async def authenticate(self, request: Request) -> Dict:
-        """
-        Аутентификация пользователя.
-        
-        Returns:
-            Dict: {
-                'user': Dict - информация о пользователе,
-                'credentials': Dict - информация о токенах
-            }
-        """
+        """Аутентификация пользователя через Google."""
         pass
 
     @abstractmethod

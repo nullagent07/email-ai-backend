@@ -1,12 +1,12 @@
 from typing import Dict
 from starlette.requests import Request
 
-from app.applications.services.auth.interfaces import AuthenticationService
+from app.applications.services.auth.interfaces import IAuthenticationService
 from app.infrastructure.auth.google.interface import IGoogleAuthAdapter
 from core.settings import get_app_settings
 
 
-class GoogleAuthenticationService(AuthenticationService):
+class GoogleAuthenticationService(IAuthenticationService):
     """Сервис аутентификации через Google."""
 
     def __init__(self, adapter: IGoogleAuthAdapter):
@@ -21,7 +21,7 @@ class GoogleAuthenticationService(AuthenticationService):
         """Аутентификация пользователя через Google."""
         # TODO: Добавить сохранение пользователя в базу данных
         # TODO: Добавить создание сессии
-        
+
         return await self._adapter.authenticate(request)
 
     async def refresh_token(self, refresh_token: str) -> Dict:

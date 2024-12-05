@@ -1,10 +1,10 @@
 from typing import Annotated
 import logging
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 from starlette.responses import RedirectResponse, JSONResponse
 
-from core.dependency_injection import AuthService
+from core.dependency_injection import AuthServiceDependency, UserServiceDependency, OAuthServiceDependency, AuthOrchestratorDependency
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,21 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def login(
     request: Request,
     provider: str,
-    auth_service: AuthService
+    auth_service: AuthServiceDependency,
+    responses={
+        200: {
+            # "model": BaseResponseSchema,
+            "description": "Запрос успешно отправлен.",
+        },
+        422: {
+            # "model": ProblemDetail,
+            "description": "Неправильно набран номер.",
+        },
+        500: {
+            "description": "Внутренняя ошибка сервера.",
+            # "model": ProblemDetail
+            },
+    },
 ):
     """Инициация процесса аутентификации через провайдера."""
     try:
@@ -40,11 +54,25 @@ async def login(
         )
 
 
-@router.get("/{provider}/callback")
+@router.get("/{provider}/callback", response_model=None)
 async def callback(
     request: Request,
     provider: str,
-    auth_service: AuthService
+    auth_orchestrator: AuthOrchestratorDependency,
+    responses={
+        200: {
+            # "model": BaseResponseSchema,
+            "description": "Запрос успешно отправлен.",
+        },
+        422: {
+            # "model": ProblemDetail,
+            "description": "Неправильно набран номер.",
+        },
+        500: {
+            "description": "Внутренняя ошибка сервера.", 
+            # "model": ProblemDetail
+            },
+    }
 ):
     """Обработка callback от провайдера OAuth."""
     try:
@@ -52,15 +80,9 @@ async def callback(
         logger.debug(f"Session in callback: {dict(request.session)}")
         logger.debug(f"Query parameters: {dict(request.query_params)}")
         
-        auth_result = await auth_service.authenticate(request)
-        
-        # Очистим состояние после успешной аутентификации
-        request.session.pop('oauth_state', None)
-        
-        return JSONResponse({
-            "message": "Аутентификация успешна",
-            "auth_result": auth_result
-        })
+        await auth_orchestrator.google_handle_callback(request)
+
+        return {"message": "Callback processed successfully"}
     except Exception as e:
         logger.error(f"Callback error: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -74,7 +96,7 @@ async def refresh_token(
     request: Request,
     provider: str,
     refresh_token: str,
-    auth_service: AuthService
+    auth_service: AuthServiceDependency
 ):
     """Обновление токена доступа."""
     try:
@@ -100,7 +122,21 @@ async def revoke_token(
     request: Request,
     provider: str,
     token: str,
-    auth_service: AuthService
+    auth_service: AuthServiceDependency,
+    responses={
+        200: {
+            # "model": BaseResponseSchema,
+            "description": "Запрос успешно отправлен.",
+        },
+        422: {
+            # "model": ProblemDetail,
+            "description": "Неправильно набран номер.",
+        },
+        500: {
+            "description": "Внутренняя ошибка сервера.", 
+            # "model": ProblemDetail
+            },
+    },
 ):
     """Отзыв токена доступа."""
     try:

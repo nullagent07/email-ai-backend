@@ -5,8 +5,17 @@ from fastapi import Depends, Path
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from authlib.integrations.starlette_client import OAuth
 
-from app.applications.services.auth.interfaces import AuthenticationService
 from core.settings import get_app_settings
+
+from app.domain.interfaces.services.user_service_interface import IUserService
+from app.domain.interfaces.services.oauth_service_interface import IOAuthService
+
+from app.applications.services.user_service import UserService
+from app.applications.services.oauth_service import OAuthService
+from app.applications.orcestrators.auth_orchestrator import AuthOrchestrator
+from app.applications.services.auth.factory import AuthServiceFactory
+
+from app.applications.services.auth.interfaces import IAuthenticationService
 
 app_settings = get_app_settings()
 
@@ -56,13 +65,29 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 def get_auth_service(
     provider: Annotated[str, Path()]
-) -> AuthenticationService:
+) -> IAuthenticationService:
     """Получение сервиса аутентификации для указанного провайдера."""
-    # Импортируем здесь, чтобы избежать циклических зависимостей
-    from app.applications.services.auth.factory import AuthServiceFactory
-    factory = AuthServiceFactory()
+    factory = AuthServiceFactory(google_oauth_client)
     return factory.create_service(provider)
+
+async def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]) -> UserService:
+    """Возвращает экземпляр UserService."""
+    return UserService(db_session=db)
+
+async def get_oauth_service(db: Annotated[AsyncSession, Depends(get_db)]) -> OAuthService:
+    """Возвращает экземпляр OAuthService."""
+    return OAuthService(db_session=db)
+
+def get_auth_orchestrator(
+    user_service: IUserService = Depends(get_user_service),
+    oauth_service: IOAuthService = Depends(get_oauth_service),
+    auth_service: IAuthenticationService = Depends(get_auth_service)
+) -> AuthOrchestrator:
+    return AuthOrchestrator(user_service, oauth_service, auth_service)
 
 # Типизированные зависимости
 DatabaseSession = Annotated[AsyncSession, Depends(get_db)]
-AuthService = Annotated[AuthenticationService, Depends(get_auth_service)]
+AuthServiceDependency = Annotated[IAuthenticationService, Depends(get_auth_service)]
+UserServiceDependency = Annotated[UserService, Depends(get_user_service)]
+OAuthServiceDependency = Annotated[OAuthService, Depends(get_oauth_service)]
+AuthOrchestratorDependency = Annotated[AuthOrchestrator, Depends(get_auth_orchestrator)]

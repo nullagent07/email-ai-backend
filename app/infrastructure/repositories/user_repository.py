@@ -1,16 +1,25 @@
 from app.domain.models.user import User
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 class UserRepository:
     """Репозиторий для работы с таблицей пользователей."""
 
-    def add_user(self, user_data: dict) -> User:
-        """Добавляет нового пользователя в базу данных."""
-        # Здесь добавьте логику для добавления пользователя в базу данных
-        print("Добавление пользователя в базу данных:", user_data)
-        return User(**user_data)
+    def __init__(self, db_session: AsyncSession) -> None:
+        self.db_session = db_session
 
-    def get_user_by_email(self, email: str) -> User:
+    async def add_user(self, user_data: dict) -> User:
+        """Добавляет нового пользователя в базу данных."""
+        async with self.db_session.begin():
+            new_user = User(**user_data)
+            self.db_session.add(new_user)
+            await self.db_session.commit()
+            return new_user
+
+    async def get_user_by_email(self, email: str) -> User:
         """Получает пользователя по email."""
-        # Здесь добавьте логику для получения пользователя из базы данных
-        print("Получение пользователя по email:", email)
-        return User(email=email)
+        async with self.db_session.begin():
+            result = await self.db_session.execute(
+                select(User).where(User.email == email)
+            )
+            return result.scalar_one_or_none()
