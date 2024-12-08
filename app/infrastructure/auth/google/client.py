@@ -4,7 +4,7 @@ import logging
 from authlib.integrations.starlette_client import StarletteOAuth2App
 from starlette.requests import Request
 
-from app.infrastructure.auth.google.interface import IGoogleOAuthClient
+from app.domain.interfaces.adapters.auth_google import IGoogleOAuthClient
 
 logger = logging.getLogger(__name__)
 
