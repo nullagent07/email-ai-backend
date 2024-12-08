@@ -89,7 +89,7 @@ async def callback(
             httponly=True,
             secure=True,
             samesite='lax',
-            max_age=3600  # время жизни токена в секундах
+            # max_age=3600  # время жизни токена в секундах
         )
         
         if "refresh_token" in token:
@@ -99,7 +99,7 @@ async def callback(
                 httponly=True,
                 secure=True,
                 samesite='lax',
-                max_age=7*24*3600  # refresh token живет дольше
+                # max_age=7*24*3600  # refresh token живет дольше
             )
             
         return response
