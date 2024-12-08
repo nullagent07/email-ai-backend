@@ -20,6 +20,10 @@ class OAuthService(IOAuthService):
         print("Поиск OAuth учетных данных по email:", email)
         return await self.oauth_repository.get_credentials_by_email(email)
 
+    async def find_by_access_token(self, access_token: str) -> OAuthCredentials:
+        """Находит OAuth учетные данные по access token."""
+        return await self.oauth_repository.get_credentials_by_access_token(access_token)
+
     async def update_credentials(self, email: str, provider: str, credentials_data: dict) -> OAuthCredentials:
         """Обновляет существующие OAuth учетные данные для конкретного провайдера."""
         return await self.oauth_repository.update_credentials(email, provider, credentials_data)

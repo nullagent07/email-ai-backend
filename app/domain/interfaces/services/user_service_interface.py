@@ -14,3 +14,8 @@ class IUserService(ABC):
     async def find_user_by_email(self, email: str) -> Users:
         """Находит пользователя по email."""
         pass
+
+    @abstractmethod
+    async def find_user_by_id(self, user_id: str) -> "Users":
+        """Находит пользователя по ID."""
+        pass

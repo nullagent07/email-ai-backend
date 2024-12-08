@@ -2,6 +2,7 @@ from app.domain.models.users import Users
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.domain.interfaces.repositories.user_repository import IUserRepository
+from fastapi import HTTPException
 
 class UserRepository(IUserRepository):
     """Репозиторий для работы с таблицей пользователей."""
@@ -24,3 +25,11 @@ class UserRepository(IUserRepository):
                 select(Users).where(Users.email == email)
             )
             return result.scalar_one_or_none()
+
+    async def get_user_by_id(self, user_id: str) -> Users:
+        """Получает пользователя по ID."""
+        result = await self.db_session.execute(select(Users).where(Users.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return user

@@ -16,6 +16,11 @@ class IOAuthRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_credentials_by_access_token(self, access_token: str) -> OAuthCredentials:
+        """Получает учетные данные по access token."""
+        pass
+
+    @abstractmethod
     async def update_credentials(self, email: str, provider: str, credentials_data: Dict) -> OAuthCredentials:
         """Обновляет существующие OAuth учетные данные в базе данных для конкретного провайдера."""
         pass

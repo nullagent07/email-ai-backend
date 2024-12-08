@@ -78,7 +78,7 @@ async def callback(
         
         # Создаем response с редиректом на фронтенд
         response = RedirectResponse(
-            url="http://10.0.0.2:3000/login",
+            url="http://localhost:3000/dashboard",
             status_code=status.HTTP_302_FOUND
             )
         

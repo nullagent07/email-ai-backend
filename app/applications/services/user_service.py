@@ -19,3 +19,7 @@ class UserService(IUserService):
         # Логика поиска пользователя по email может быть добавлена здесь
         print("Поиск пользователя по email:", email)
         return await self.user_repository.get_user_by_email(email)
+
+    async def find_user_by_id(self, user_id: str) -> Users:
+        """Находит пользователя по ID."""
+        return await self.user_repository.get_user_by_id(user_id)
