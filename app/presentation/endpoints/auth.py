@@ -91,16 +91,6 @@ async def callback(
             samesite='lax',
             # max_age=3600  # время жизни токена в секундах
         )
-        
-        if "refresh_token" in token:
-            response.set_cookie(
-                key="refresh_token",
-                value=token["refresh_token"],
-                httponly=True,
-                secure=True,
-                samesite='lax',
-                # max_age=7*24*3600  # refresh token живет дольше
-            )
             
         return response
         
