@@ -1,7 +1,7 @@
 from app.infrastructure.repositories.user_repository import UserRepository
 from app.domain.models.users import Users
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.interfaces.repositories.user_repository_interface import IUserRepository
+from app.domain.interfaces.repositories.user_repository import IUserRepository
 from app.domain.interfaces.services.user_service_interface import IUserService
 
 class UserService(IUserService): 

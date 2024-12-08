@@ -2,7 +2,7 @@ from app.infrastructure.repositories.oauth_repository import OAuthRepository
 from app.domain.models.oauth import OAuthCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.interfaces.services.oauth_service_interface import IOAuthService
-from app.domain.interfaces.repositories.oauth_repository_interface import IOAuthRepository
+from app.domain.interfaces.repositories.oauth_repository import IOAuthRepository
 
 class OAuthService(IOAuthService):
     """Сервис для работы с OAuth учетными данными."""

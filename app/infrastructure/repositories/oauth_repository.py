@@ -1,7 +1,7 @@
 from app.domain.models.oauth import OAuthCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.interfaces.repositories.oauth_repository_interface import IOAuthRepository
+from app.domain.interfaces.repositories.oauth_repository import IOAuthRepository
 
 
 class OAuthRepository(IOAuthRepository):
