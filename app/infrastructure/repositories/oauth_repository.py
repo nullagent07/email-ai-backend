@@ -1,8 +1,10 @@
 from app.domain.models.oauth import OAuthCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.domain.interfaces.repositories.oauth_repository_interface import IOAuthRepository
 
-class OAuthRepository:
+
+class OAuthRepository(IOAuthRepository):
     """Репозиторий для работы с таблицей OAuth учетных данных."""
 
     def __init__(self, db_session: AsyncSession) -> None:
@@ -23,3 +25,20 @@ class OAuthRepository:
                 select(OAuthCredentials).where(OAuthCredentials.email == email)
             )
             return result.scalar_one_or_none()
+
+    async def update_credentials(self, email: str, provider: str, credentials_data: dict) -> OAuthCredentials:
+        """Обновляет существующие OAuth учетные данные в базе данных для конкретного провайдера."""
+        async with self.db_session.begin():
+            result = await self.db_session.execute(
+                select(OAuthCredentials).where(
+                    OAuthCredentials.email == email,
+                    OAuthCredentials.provider == provider
+                )
+            )
+            credentials = result.scalar_one_or_none()
+            if credentials:
+                for key, value in credentials_data.items():
+                    setattr(credentials, key, value)
+                await self.db_session.commit()
+                return credentials
+            return None

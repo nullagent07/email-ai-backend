@@ -1,8 +1,9 @@
 from app.domain.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.domain.interfaces.repositories.user_repository_interface import IUserRepository
 
-class UserRepository:
+class UserRepository(IUserRepository):
     """Репозиторий для работы с таблицей пользователей."""
 
     def __init__(self, db_session: AsyncSession) -> None:

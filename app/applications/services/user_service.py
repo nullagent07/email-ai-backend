@@ -1,12 +1,14 @@
 from app.infrastructure.repositories.user_repository import UserRepository
 from app.domain.models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.domain.interfaces.repositories.user_repository_interface import IUserRepository
+from app.domain.interfaces.services.user_service_interface import IUserService
 
-class UserService:
+class UserService(IUserService): 
     """Сервис для работы с пользователями."""
 
     def __init__(self, db_session: AsyncSession):
-        self.user_repository = UserRepository(db_session=db_session)
+        self.user_repository : IUserRepository = UserRepository(db_session=db_session)
 
     async def create_user(self, user_data: dict) -> User:
         """Создает нового пользователя."""
