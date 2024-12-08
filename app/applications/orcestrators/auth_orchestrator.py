@@ -3,8 +3,8 @@ from app.domain.models.oauth import OAuthCredentials
 from fastapi import Request, Depends
 from fastapi.exceptions import HTTPException
 from starlette.responses import JSONResponse
-from app.domain.interfaces.services.user_service_interface import IUserService
-from app.domain.interfaces.services.oauth_service_interface import IOAuthService
+from app.domain.interfaces.services.user_service import IUserService
+from app.domain.interfaces.services.oauth_service import IOAuthService
 from app.applications.services.auth.interfaces import IAuthenticationService
 from datetime import datetime
 

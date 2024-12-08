@@ -7,8 +7,8 @@ from authlib.integrations.starlette_client import OAuth
 
 from core.settings import get_app_settings
 
-from app.domain.interfaces.services.user_service_interface import IUserService
-from app.domain.interfaces.services.oauth_service_interface import IOAuthService
+from app.domain.interfaces.services.user_service import IUserService
+from app.domain.interfaces.services.oauth_service import IOAuthService
 
 from app.applications.services.user_service import UserService
 from app.applications.services.oauth_service import OAuthService
