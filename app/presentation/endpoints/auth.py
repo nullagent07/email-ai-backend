@@ -1,7 +1,7 @@
 from typing import Annotated
 import logging
 
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends, status
 from starlette.responses import RedirectResponse, JSONResponse
 
 from core.dependency_injection import AuthServiceDependency, UserServiceDependency, OAuthServiceDependency, AuthOrchestratorDependency
@@ -77,7 +77,10 @@ async def callback(
         token = await auth_orchestrator.handle_oauth_callback(request)
         
         # Создаем response с редиректом на фронтенд
-        response = RedirectResponse(url="YOUR_FRONTEND_URL")
+        response = RedirectResponse(
+            url="http://10.0.0.2:3000/login",
+            status_code=status.HTTP_302_FOUND
+            )
         
         # Устанавливаем токен в httpOnly secure куки
         response.set_cookie(
