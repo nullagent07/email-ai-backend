@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.domain.models.base import Base
 
 
-class User(Base):
+class Users(Base):
     """Модель пользователя."""
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -15,6 +15,6 @@ class User(Base):
     email: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
 
     # Отношения
-    assistants: Mapped[list["AssistantProfile"]] = relationship(back_populates="creator")
-    threads: Mapped[list["EmailThread"]] = relationship(back_populates="user")
+    assistants: Mapped[list["AssistantProfiles"]] = relationship(back_populates="creator")
+    threads: Mapped[list["EmailThreads"]] = relationship(back_populates="user")
     oauth_credentials: Mapped[list["OAuthCredentials"]] = relationship(back_populates="user")

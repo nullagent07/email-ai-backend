@@ -14,3 +14,8 @@ class IOAuthService(ABC):
     async def find_credentials_by_email(self, email: str) -> OAuthCredentials:
         """Находит OAuth учетные данные по email."""
         pass
+
+    @abstractmethod
+    async def update_credentials(self, email: str, provider: str, credentials_data: Dict) -> OAuthCredentials:
+        """Обновляет существующие OAuth учетные данные для конкретного провайдера."""
+        pass

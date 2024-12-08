@@ -1,4 +1,4 @@
-from app.domain.models.user import User
+from app.domain.models.users import Users
 from app.domain.models.oauth import OAuthCredentials
 from fastapi import Request, Depends
 from fastapi.exceptions import HTTPException
@@ -20,7 +20,7 @@ class AuthOrchestrator:
         self.oauth_service = oauth_service
         self.auth_service = auth_service
 
-    async def google_authenticate(self, auth_result: dict) -> User:
+    async def google_authenticate(self, auth_result: dict) -> Users:
         """Аутентифицирует пользователя через Google и обновляет или создает учетные записи."""
         userinfo = auth_result['userinfo']
         email = userinfo['email']
@@ -34,16 +34,29 @@ class AuthOrchestrator:
                 'email': email
             })
 
-        # Обновляем или создаем учетные данные OAuth
-        await self.oauth_service.create_credentials({
-            'user_id': user.id,
-            'provider': 'google',
-            'access_token': auth_result['access_token'],
-            'refresh_token': auth_result['refresh_token'],
-            'expires_at': datetime.fromtimestamp(auth_result['expires_at']),
-            'email': email,
-            'provider_data': userinfo
-        })
+            # Обновляем или создаем учетные данные OAuth
+            await self.oauth_service.create_credentials({
+                'user_id': user.id,
+                'provider': 'google',
+                'access_token': auth_result['access_token'],
+                'refresh_token': auth_result['refresh_token'],
+                'expires_at': datetime.fromtimestamp(auth_result['expires_at']),
+                'email': email,
+                'provider_data': userinfo
+            })
+        else:
+            # Обновляем учетные данные OAuth
+            await self.oauth_service.update_credentials(
+                email=email,
+                provider='google',
+                credentials_data={
+                    'access_token': auth_result['access_token'],
+                    'refresh_token': auth_result['refresh_token'],
+                    'expires_at': datetime.fromtimestamp(auth_result['expires_at']),
+                    'email': email,
+                    'provider_data': userinfo
+                }
+            )
 
         return user
 

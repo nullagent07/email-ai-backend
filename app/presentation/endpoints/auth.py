@@ -41,9 +41,7 @@ async def login(
             
         # Получаем URL авторизации через адаптер
         auth_url = await auth_service._adapter.get_authorization_url(request)
-        
-        # Удаляем сохранение состояния в сессии, так как оно обрабатывается автоматически
-        # request.session['oauth_state'][provider] = auth_service._adapter._client.state
+    
         
         return RedirectResponse(url=auth_url, status_code=302)
     except Exception as e:

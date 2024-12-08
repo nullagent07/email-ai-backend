@@ -19,3 +19,7 @@ class OAuthService(IOAuthService):
         # Логика поиска учетных данных по email может быть добавлена здесь
         print("Поиск OAuth учетных данных по email:", email)
         return await self.oauth_repository.get_credentials_by_email(email)
+
+    async def update_credentials(self, email: str, provider: str, credentials_data: dict) -> OAuthCredentials:
+        """Обновляет существующие OAuth учетные данные для конкретного провайдера."""
+        return await self.oauth_repository.update_credentials(email, provider, credentials_data)

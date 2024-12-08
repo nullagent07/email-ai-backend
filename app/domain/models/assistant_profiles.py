@@ -4,16 +4,16 @@ from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.models.base import Base
-from app.domain.models.user import User
+from app.domain.models.users import Users
 
 
-class AssistantProfile(Base):
+class AssistantProfiles(Base):
     """Модель профиля ассистента."""
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    creator_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    creator_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     instruction: Mapped[str] = mapped_column(Text)
 
     # Отношения
-    creator: Mapped[User] = relationship(back_populates="assistants")
-    threads: Mapped[list["EmailThread"]] = relationship(back_populates="assistant")
+    creator: Mapped[Users] = relationship(back_populates="assistants")
+    threads: Mapped[list["EmailThreads"]] = relationship(back_populates="assistant")

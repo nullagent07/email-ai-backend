@@ -22,7 +22,7 @@ class BaseAppSettings(BaseSettings):
 
     pg_host: str = os.getenv("PG_HOST", "localhost")
     pg_port: str = os.getenv("PG_PORT", "5432")
-    pg_database: str = os.getenv("PG_DATABASE", "health_tracker")
+    pg_database: str = os.getenv("PG_DATABASE", "postgres")
     pg_username: str = os.getenv("PG_USERNAME", "postgres")
     pg_password: str = os.getenv("PG_PASSWORD", "example")
     pool_size: int = 20
