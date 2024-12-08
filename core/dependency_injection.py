@@ -15,7 +15,7 @@ from app.applications.services.oauth_service import OAuthService
 from app.applications.orcestrators.auth_orchestrator import AuthOrchestrator
 from app.applications.services.auth.factory import AuthServiceFactory
 
-from app.applications.services.auth.interfaces import IAuthenticationService
+from app.domain.interfaces.services.auth_service import IAuthenticationService
 
 app_settings = get_app_settings()
 

@@ -5,7 +5,7 @@ from fastapi.exceptions import HTTPException
 from starlette.responses import JSONResponse
 from app.domain.interfaces.services.user_service import IUserService
 from app.domain.interfaces.services.oauth_service import IOAuthService
-from app.applications.services.auth.interfaces import IAuthenticationService
+from app.domain.interfaces.services.auth_service import IAuthenticationService
 from datetime import datetime
 
 import logging

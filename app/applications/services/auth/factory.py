@@ -1,8 +1,8 @@
 from typing import Dict, Type
 
 from app.applications.services.auth.google_auth_service import GoogleAuthenticationService
-from app.applications.services.auth.interfaces import IAuthenticationService
-from app.infrastructure.auth.google.adapter import GoogleAuthAdapter
+from app.domain.interfaces.services.auth_service import IAuthenticationService
+from app.infrastructure.integrations.auth.google.adapter import GoogleAuthAdapter
 from core.settings import get_app_settings
 
 from authlib.integrations.starlette_client import StarletteOAuth2App
