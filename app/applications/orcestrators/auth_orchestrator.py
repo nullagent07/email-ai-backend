@@ -60,24 +60,57 @@ class AuthOrchestrator:
 
         return user
 
-    async def google_handle_callback(self, request: Request) -> bool:
-        """Обрабатывает callback от провайдера OAuth и управляет процессом аутентификации."""
+    async def google_handle_callback(self, request: Request) -> dict:
+        """Обрабатывает callback от провайдера OAuth и возвращает токены."""
         try:
             auth_result = await self.auth_service.authenticate(request)
             user = await self.google_authenticate(auth_result)
             request.session.pop('oauth_state', None)
-            # user = JSONResponse({
-            #     "message": "Аутентификация успешна",
-            #     "user": {
-            #         "id": user.id,
-            #         "name": user.name,
-            #         "email": user.email
-            #     }
-            # })
-            return True
+            
+            # Возвращаем токены для установки в куки
+            response_data = {
+                "access_token": auth_result["access_token"]
+            }
+            
+            if "refresh_token" in auth_result:
+                response_data["refresh_token"] = auth_result["refresh_token"]
+                
+            return response_data
+            
         except Exception as e:
             logger.error(f"Callback error: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=500,
                 detail=f"Ошибка при аутентификации: {str(e)}"
+            )
+
+    async def handle_oauth_callback(self, request: Request) -> dict:
+        """Обрабатывает OAuth callback в зависимости от провайдера."""
+        try:
+            provider = request.path_params.get('provider')
+            
+            # Словарь соответствия провайдеров и методов обработки
+            provider_handlers = {
+                'google': self.google_handle_callback,
+                # Добавьте другие провайдеры здесь
+                # 'github': self.github_handle_callback,
+                # 'facebook': self.facebook_handle_callback,
+            }
+            
+            if provider not in provider_handlers:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Неподдерживаемый провайдер: {provider}"
+                )
+            
+            # Вызываем соответствующий метод обработки
+            return await provider_handlers[provider](request)
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Ошибка в handle_oauth_callback: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Ошибка при обработке OAuth callback: {str(e)}"
             )

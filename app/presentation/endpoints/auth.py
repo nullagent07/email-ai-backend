@@ -6,6 +6,8 @@ from starlette.responses import RedirectResponse, JSONResponse
 
 from core.dependency_injection import AuthServiceDependency, UserServiceDependency, OAuthServiceDependency, AuthOrchestratorDependency
 
+from app.presentation.schemas.problem import ProblemDetail
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -22,12 +24,12 @@ async def login(
             "description": "Запрос успешно отправлен.",
         },
         422: {
-            # "model": ProblemDetail,
+            "model": ProblemDetail,
             "description": "Неправильно набран номер.",
         },
         500: {
-            "description": "Внутренняя ошибка сервера.",
-            # "model": ProblemDetail
+            "model": ProblemDetail,
+            "description": "Внутренняя ошибка сервера.",            
             },
     },
 ):
@@ -41,8 +43,7 @@ async def login(
             
         # Получаем URL авторизации через адаптер
         auth_url = await auth_service._adapter.get_authorization_url(request)
-    
-        
+
         return RedirectResponse(url=auth_url, status_code=302)
     except Exception as e:
         logger.error(f"Login error: {str(e)}", exc_info=True)
@@ -59,33 +60,52 @@ async def callback(
     auth_orchestrator: AuthOrchestratorDependency,
     responses={
         200: {
-            # "model": BaseResponseSchema,
-            "description": "Запрос успешно отправлен.",
+            "description": "Успешная аутентификация.",
         },
         422: {
-            # "model": ProblemDetail,
-            "description": "Неправильно набран номер.",
+            "model": ProblemDetail,
+            "description": "Неправильные параметры запроса.",
         },
         500: {
-            "description": "Внутренняя ошибка сервера.", 
-            # "model": ProblemDetail
-            },
-    }
+            "model": ProblemDetail,
+            "description": "Внутренняя ошибка сервера.",
+        },
+    },
 ):
     """Обработка callback от провайдера OAuth."""
     try:
-        logger.info(f"Handling {provider} callback")
-        logger.debug(f"Session in callback: {dict(request.session)}")
-        logger.debug(f"Query parameters: {dict(request.query_params)}")
+        token = await auth_orchestrator.handle_oauth_callback(request)
         
-        await auth_orchestrator.google_handle_callback(request)
-
-        return {"message": "Callback processed successfully"}
+        # Создаем response с редиректом на фронтенд
+        response = RedirectResponse(url="YOUR_FRONTEND_URL")
+        
+        # Устанавливаем токен в httpOnly secure куки
+        response.set_cookie(
+            key="access_token",
+            value=token["access_token"],
+            httponly=True,
+            secure=True,
+            samesite='lax',
+            max_age=3600  # время жизни токена в секундах
+        )
+        
+        if "refresh_token" in token:
+            response.set_cookie(
+                key="refresh_token",
+                value=token["refresh_token"],
+                httponly=True,
+                secure=True,
+                samesite='lax',
+                max_age=7*24*3600  # refresh token живет дольше
+            )
+            
+        return response
+        
     except Exception as e:
         logger.error(f"Callback error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Ошибка при аутентификации: {str(e)}"
+            detail=f"Ошибка при обработке callback: {str(e)}"
         )
 
 
@@ -127,12 +147,12 @@ async def revoke_token(
             "description": "Запрос успешно отправлен.",
         },
         422: {
-            # "model": ProblemDetail,
+            "model": ProblemDetail,
             "description": "Неправильно набран номер.",
         },
         500: {
             "description": "Внутренняя ошибка сервера.", 
-            # "model": ProblemDetail
+            "model": ProblemDetail
             },
     },
 ):
