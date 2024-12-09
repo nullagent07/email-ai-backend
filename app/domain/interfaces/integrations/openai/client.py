@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 
-class OpenAIClientInterface(ABC):
+class IOpenAIClient(ABC):
     """Interface for OpenAI API client operations related to assistants."""
     
     @abstractmethod

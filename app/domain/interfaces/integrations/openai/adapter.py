@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 from app.domain.interfaces.integrations.openai.client import OpenAIClientInterface
 
 
-class OpenAIAdapterInterface(ABC):
+class IOpenAIAdapter(ABC):
     """Interface for OpenAI adapter that provides higher-level operations for working with assistants."""
 
     @abstractmethod
