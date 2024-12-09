@@ -2,7 +2,7 @@ from typing import Dict
 from starlette.requests import Request
 
 from app.domain.interfaces.services.auth_service import IAuthenticationService
-from app.domain.interfaces.adapters.auth_google import IGoogleAuthAdapter
+from app.domain.interfaces.integrations.auth.google.adapter import IGoogleAuthAdapter
 from core.settings import get_app_settings
 
 
