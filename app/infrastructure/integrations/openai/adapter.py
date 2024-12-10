@@ -17,7 +17,7 @@ class OpenAIAdapter(IOpenAIAdapter):
             "function": {"type": "function"},
         }
 
-    def get_client(self) -> OpenAIClientInterface:
+    def get_client(self) -> OpenAIClient:
         """Get the OpenAI client instance."""
         if not self._client:
             raise RuntimeError("Client not initialized. Call initialize_client() first")

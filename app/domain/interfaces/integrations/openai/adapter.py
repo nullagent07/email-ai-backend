@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 
-from app.domain.interfaces.integrations.openai.client import OpenAIClientInterface
+from app.domain.interfaces.integrations.openai.client import IOpenAIClient
 
 
 class IOpenAIAdapter(ABC):
     """Interface for OpenAI adapter that provides higher-level operations for working with assistants."""
 
     @abstractmethod
-    def get_client(self) -> OpenAIClientInterface:
+    def get_client(self) -> IOpenAIClient:
         """
         Get the OpenAI client instance.
         
