@@ -13,7 +13,7 @@ from app.domain.interfaces.services.oauth_service import IOAuthService
 from app.applications.services.user_service import UserService
 from app.applications.services.oauth_service import OAuthService
 from app.applications.orcestrators.auth_orchestrator import AuthOrchestrator
-from app.applications.services.auth.factory import AuthServiceFactory
+from app.applications.factories.auth_factory import AuthServiceFactory
 
 from app.domain.interfaces.services.auth_service import IAuthenticationService
 
