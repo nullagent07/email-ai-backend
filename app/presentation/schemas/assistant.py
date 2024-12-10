@@ -58,5 +58,4 @@ class AssistantResponse(BaseModel):
 class AssistantProfileResponse(BaseModel):
     """Schema for assistant profile response without OpenAI details."""
     profile_id: str = Field(..., description="ID of the assistant profile")
-    creator_user_id: str = Field(..., description="ID of the user who created the assistant")
     instruction: str = Field(..., description="Instructions for the assistant")

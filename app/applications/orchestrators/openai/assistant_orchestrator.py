@@ -190,7 +190,6 @@ class AssistantOrchestrator(IAssistantOrchestrator):
         return [
             {
                 "profile_id": profile.id,
-                "creator_user_id": str(profile.creator_user_id),
                 "instruction": profile.instruction
             }
             for profile in profiles
