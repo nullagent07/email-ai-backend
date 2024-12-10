@@ -87,7 +87,7 @@ class AssistantOrchestrator(IAssistantOrchestrator):
             "profile_id": profile.id,
             "creator_user_id": str(profile.creator_user_id)
         }
-    
+
     async def update_assistant(
         self,
         assistant_id: str,
@@ -144,7 +144,7 @@ class AssistantOrchestrator(IAssistantOrchestrator):
             "profile_id": profile.id,
             "creator_user_id": str(profile.creator_user_id)
         }
-    
+
     async def delete_assistant(self, assistant_id: str, user_id: UUID) -> bool:
         """
         Delete an assistant.
@@ -170,7 +170,7 @@ class AssistantOrchestrator(IAssistantOrchestrator):
             
         # Then delete profile
         return await self._profiles_repository.delete(assistant_id)
-    
+
     async def get_user_assistants(self, user_id: UUID) -> List[Dict[str, Any]]:
         """
         Get all assistants for a user.

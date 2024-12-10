@@ -1,22 +1,48 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
+from uuid import UUID
 
 class IAssistantOrchestrator(ABC):
     """Interface for orchestrating OpenAI assistants operations."""
 
     @abstractmethod
-    async def create_email_assistant(
+    async def initialize(
         self,
-        name: str,
-        instructions: str,
-        description: Optional[str] = None
-    ) -> Dict[str, Any]:
+        api_key: str,
+        organization: Optional[str] = None,
+        api_base: Optional[str] = None,
+        timeout: Optional[float] = None
+    ) -> None:
         """
-        Create an assistant specifically configured for email processing.
+        Initialize the orchestrator with OpenAI credentials.
         
         Args:
+            api_key: OpenAI API key
+            organization: Optional organization ID
+            api_base: Optional API base URL
+            timeout: Optional request timeout
+        """
+        pass
+
+    @abstractmethod
+    async def create_assistant(
+        self,
+        creator_user_id: UUID,
+        name: str,
+        instructions: str,
+        capabilities: List[str],
+        model: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create a new assistant with specified capabilities.
+        
+        Args:
+            creator_user_id: ID of the user creating the assistant
             name: Name of the assistant
-            instructions: Base instructions for the assistant
+            instructions: Instructions for the assistant
+            capabilities: List of capabilities to enable
+            model: Optional model to use
             description: Optional description
             
         Returns:
@@ -25,73 +51,63 @@ class IAssistantOrchestrator(ABC):
         pass
 
     @abstractmethod
-    async def get_or_create_assistant(
-        self,
-        assistant_type: str,
-        name: str,
-        instructions: str,
-        description: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Get an existing assistant of the specified type or create a new one.
-        
-        Args:
-            assistant_type: Type of assistant (e.g., 'email', 'code', etc.)
-            name: Name for the assistant if creation is needed
-            instructions: Instructions if creation is needed
-            description: Optional description if creation is needed
-            
-        Returns:
-            Dict containing the assistant's information
-        """
-        pass
-
-    @abstractmethod
-    async def ensure_assistant_capabilities(
+    async def update_assistant(
         self,
         assistant_id: str,
-        required_capabilities: List[str]
+        user_id: UUID,
+        capabilities: Optional[List[str]] = None,
+        name: Optional[str] = None,
+        instructions: Optional[str] = None,
+        model: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing assistant.
+        
+        Args:
+            assistant_id: ID of the assistant to update
+            user_id: ID of the user making the update
+            capabilities: Optional new list of capabilities
+            name: Optional new name
+            instructions: Optional new instructions
+            model: Optional new model
+            description: Optional new description
+            
+        Returns:
+            Dict containing the updated assistant's information or None if not found
+        """
+        pass
+
+    @abstractmethod
+    async def delete_assistant(
+        self,
+        assistant_id: str,
+        user_id: UUID
     ) -> bool:
         """
-        Ensure that an assistant has all the required capabilities.
+        Delete an assistant.
         
         Args:
-            assistant_id: ID of the assistant to check/update
-            required_capabilities: List of capabilities that must be present
+            assistant_id: ID of the assistant to delete
+            user_id: ID of the user making the deletion
             
         Returns:
-            bool: True if all capabilities are present or were successfully added
+            bool: True if deletion was successful
         """
         pass
 
     @abstractmethod
-    async def get_assistant_state(
+    async def get_user_assistants(
         self,
-        assistant_id: str
-    ) -> Dict[str, Any]:
+        user_id: UUID
+    ) -> List[Dict[str, Any]]:
         """
-        Get the current state and configuration of an assistant.
+        Get all assistants for a user.
         
         Args:
-            assistant_id: ID of the assistant
+            user_id: ID of the user
             
         Returns:
-            Dict containing the assistant's current state and configuration
-        """
-        pass
-
-    @abstractmethod
-    async def cleanup_inactive_assistants(
-        self,
-        max_inactive_days: int = 30
-    ) -> List[str]:
-        """
-        Clean up assistants that haven't been active for a specified period.
-        
-        Args:
-            max_inactive_days: Maximum number of days of inactivity before cleanup
-            
-        Returns:
-            List of IDs of assistants that were cleaned up
+            List of assistant information
         """
         pass

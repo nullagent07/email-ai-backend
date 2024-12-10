@@ -42,6 +42,10 @@ class BaseAppSettings(BaseSettings):
     google_service_account: str = "email-assistant@effective-reach-425812-u0.iam.gserviceaccount.com"
     google_pubsub_topic_name: str = "projects/effective-reach-425812-u0/topics/l6E-5+QaFnBk-i"
 
+    # OpenAI settings
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "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")
+    openai_organization: str = os.getenv("OPENAI_ORGANIZATION", "")
+
     model_config = SettingsConfigDict(
         env_file=os.getenv("ENV_FILE", ".env"),
         extra="allow"  # Разрешаем дополнительные поля
