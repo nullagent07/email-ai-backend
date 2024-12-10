@@ -1,21 +1,17 @@
 from typing import Optional, List, Dict, Any
-from app.infrastructure.integrations.openai.adapter import OpenAIAdapter
+from app.domain.interfaces.integrations.openai.adapter import IOpenAIAdapter
+from app.domain.interfaces.services.openai.assistant_service import IAssistantService
 
 
-class OpenAIService:
+class AssistantService(IAssistantService):
     """Service for managing OpenAI assistants."""
 
-    def __init__(self, api_key: str, organization: Optional[str] = None):
-        self._api_key = api_key
-        self._organization = organization
-        self._adapter = OpenAIAdapter()
-        
+    def __init__(self, adapter: IOpenAIAdapter):
+        self._adapter = adapter
+    
     async def initialize(self) -> None:
         """Initialize the OpenAI adapter."""
-        await self._adapter.initialize_client(
-            api_key=self._api_key,
-            organization=self._organization
-        )
+        await self._adapter.initialize_client()
     
     async def create_assistant(
         self,
@@ -69,10 +65,7 @@ class OpenAIService:
         Returns:
             Dict containing the updated assistant's information
         """
-        # If capabilities not provided, we still need to pass the current ones
-        # In a real application, you might want to fetch current capabilities first
         capabilities = capabilities or []
-        
         return await self._adapter.update_assistant_capabilities(
             assistant_id=assistant_id,
             capabilities=capabilities,
