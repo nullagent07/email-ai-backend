@@ -1,7 +1,8 @@
 from collections.abc import AsyncGenerator
-from typing import Annotated
+from typing import Annotated, Optional
+from uuid import UUID
 
-from fastapi import Depends, Path
+from fastapi import Depends, Path, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from authlib.integrations.starlette_client import OAuth
 
@@ -9,11 +10,15 @@ from core.settings import get_app_settings
 
 from app.domain.interfaces.services.user_service import IUserService
 from app.domain.interfaces.services.oauth_service import IOAuthService
+from app.domain.interfaces.orchestrators.assistant_orchestrator import IAssistantOrchestrator
+from app.domain.interfaces.repositories.assistant_profiles_repository import IAssistantProfilesRepository
 
 from app.applications.services.user_service import UserService
 from app.applications.services.oauth_service import OAuthService
-from app.applications.orcestrators.auth_orchestrator import AuthOrchestrator
+from app.applications.orchestrators.auth_orchestrator import AuthOrchestrator
+from app.applications.orchestrators.openai.assistant_orchestrator import AssistantOrchestrator
 from app.applications.factories.auth_factory import AuthServiceFactory
+from app.infrastructure.repositories.assistant_profiles_repository import AssistantProfilesRepository
 
 from app.domain.interfaces.services.auth_service import IAuthenticationService
 
@@ -78,6 +83,23 @@ async def get_oauth_service(db: Annotated[AsyncSession, Depends(get_db)]) -> OAu
     """Возвращает экземпляр OAuthService."""
     return OAuthService(db_session=db)
 
+async def get_assistant_profiles_repository(
+    db: Annotated[AsyncSession, Depends(get_db)]
+) -> IAssistantProfilesRepository:
+    """Возвращает экземпляр AssistantProfilesRepository."""
+    return AssistantProfilesRepository(session=db)
+
+async def get_assistant_orchestrator(
+    profiles_repository: Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)]
+) -> IAssistantOrchestrator:
+    """Возвращает экземпляр AssistantOrchestrator."""
+    orchestrator = AssistantOrchestrator(profiles_repository=profiles_repository)
+    await orchestrator.initialize(
+        api_key=app_settings.openai_api_key,
+        organization=app_settings.openai_organization
+    )
+    return orchestrator
+
 def get_auth_orchestrator(
     user_service: IUserService = Depends(get_user_service),
     oauth_service: IOAuthService = Depends(get_oauth_service),
@@ -85,9 +107,45 @@ def get_auth_orchestrator(
 ) -> AuthOrchestrator:
     return AuthOrchestrator(user_service, oauth_service, auth_service)
 
+async def get_current_user_id(
+    request: Request,
+    oauth_service: Annotated[OAuthService, Depends(get_oauth_service)]
+) -> UUID:
+    """
+    Получает ID пользователя из access_token в куках.
+    
+    Args:
+        request: FastAPI Request объект
+        oauth_service: Сервис для работы с OAuth
+        
+    Returns:
+        UUID: ID текущего пользователя
+        
+    Raises:
+        HTTPException: Если пользователь не аутентифицирован или токен недействителен
+    """
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+
+    credentials = await oauth_service.find_by_access_token(access_token)
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+    
+    return credentials.user_id
+
 # Типизированные зависимости
 DatabaseSession = Annotated[AsyncSession, Depends(get_db)]
 AuthServiceDependency = Annotated[IAuthenticationService, Depends(get_auth_service)]
 UserServiceDependency = Annotated[UserService, Depends(get_user_service)]
 OAuthServiceDependency = Annotated[OAuthService, Depends(get_oauth_service)]
 AuthOrchestratorDependency = Annotated[AuthOrchestrator, Depends(get_auth_orchestrator)]
+AssistantOrchestratorDependency = Annotated[IAssistantOrchestrator, Depends(get_assistant_orchestrator)]
+AssistantProfilesRepositoryDependency = Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)]
+CurrentUserDependency = Annotated[UUID, Depends(get_current_user_id)]
