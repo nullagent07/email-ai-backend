@@ -21,7 +21,7 @@ router = APIRouter(prefix="/assistants", tags=["assistants"])
 async def create_assistant(
     data: AssistantCreate,
     orchestrator: AssistantOrchestratorDependency,
-    user_id: str = Depends(CurrentUserDependency)
+    user_id: CurrentUserDependency
 ):
     """
     Create a new OpenAI assistant with specified capabilities.
@@ -63,7 +63,7 @@ async def update_assistant(
     assistant_id: str,
     data: AssistantUpdate,
     orchestrator: AssistantOrchestratorDependency,
-    user_id: str = Depends(CurrentUserDependency)
+    user_id: CurrentUserDependency
 ):
     """
     Update an existing OpenAI assistant.
@@ -113,7 +113,7 @@ async def update_assistant(
 async def delete_assistant(
     assistant_id: str,
     orchestrator: AssistantOrchestratorDependency,
-    user_id: str = Depends(CurrentUserDependency)
+    user_id: CurrentUserDependency
 ):
     """
     Delete an OpenAI assistant.
@@ -149,7 +149,7 @@ async def delete_assistant(
 )
 async def get_user_assistants(
     orchestrator: AssistantOrchestratorDependency,
-    user_id: str = Depends(CurrentUserDependency)
+    user_id: CurrentUserDependency
 ):
     """
     Get all assistants for the authenticated user.
