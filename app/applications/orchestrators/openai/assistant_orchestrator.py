@@ -4,16 +4,16 @@ from uuid import UUID
 from app.domain.interfaces.orchestrators.assistant_orchestrator import IAssistantOrchestrator
 from app.domain.interfaces.repositories.assistant_profiles_repository import IAssistantProfilesRepository
 from app.applications.factories.openai_factory import OpenAIFactory
-from app.applications.services.openai.assistant_service import AssistantService
-from app.applications.services.openai.thread_service import ThreadService
+from app.applications.services.openai.assistant_service import OpenAIAssistantService
+from app.applications.services.openai.thread_service import OpenAIThreadService
 
 
 class AssistantOrchestrator(IAssistantOrchestrator):
     """Orchestrator for managing OpenAI assistants and threads."""
 
     def __init__(self, profiles_repository: IAssistantProfilesRepository):
-        self._assistant_service: Optional[AssistantService] = None
-        self._thread_service: Optional[ThreadService] = None
+        self._openai_assistant_service: Optional[OpenAIAssistantService] = None
+        self._openai_thread_service: Optional[OpenAIThreadService] = None
         self._profiles_repository = profiles_repository
     
     async def initialize(
@@ -32,7 +32,7 @@ class AssistantOrchestrator(IAssistantOrchestrator):
             api_base: Optional API base URL
             timeout: Optional request timeout
         """
-        self._assistant_service, self._thread_service = await OpenAIFactory.create_services(
+        self._openai_assistant_service, self._openai_thread_service = await OpenAIFactory.create_services(
             api_key=api_key,
             organization=organization,
             api_base=api_base,
@@ -62,11 +62,11 @@ class AssistantOrchestrator(IAssistantOrchestrator):
         Returns:
             Dict containing the created assistant's information
         """
-        if not self._assistant_service:
+        if not self._openai_assistant_service:
             raise RuntimeError("AssistantOrchestrator not initialized")
             
         # Create assistant in OpenAI
-        openai_assistant = await self._assistant_service.create_assistant(
+        openai_assistant = await self._openai_assistant_service.create_assistant(
             name=name,
             instructions=instructions,
             capabilities=capabilities,
@@ -113,7 +113,7 @@ class AssistantOrchestrator(IAssistantOrchestrator):
         Returns:
             Dict containing the updated assistant's information or None if not found
         """
-        if not self._assistant_service:
+        if not self._openai_assistant_service:
             raise RuntimeError("AssistantOrchestrator not initialized")
             
         # Check if profile exists and belongs to user
@@ -122,7 +122,7 @@ class AssistantOrchestrator(IAssistantOrchestrator):
             return None
             
         # Update in OpenAI
-        openai_assistant = await self._assistant_service.update_assistant(
+        openai_assistant = await self._openai_assistant_service.update_assistant(
             assistant_id=assistant_id,
             capabilities=capabilities,
             name=name,
@@ -156,7 +156,7 @@ class AssistantOrchestrator(IAssistantOrchestrator):
         Returns:
             bool: True if deletion was successful
         """
-        if not self._assistant_service:
+        if not self._openai_assistant_service:
             raise RuntimeError("AssistantOrchestrator not initialized")
             
         # Check if profile exists and belongs to user
@@ -165,7 +165,7 @@ class AssistantOrchestrator(IAssistantOrchestrator):
             return False
             
         # Delete from OpenAI first
-        if not await self._assistant_service.delete_assistant(assistant_id):
+        if not await self._openai_assistant_service.delete_assistant(assistant_id):
             return False
             
         # Then delete profile

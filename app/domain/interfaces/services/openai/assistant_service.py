@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 
 
-class IAssistantService(ABC):
+class IOpenAIAssistantService(ABC):
     """Interface for managing OpenAI assistants."""
 
     @abstractmethod

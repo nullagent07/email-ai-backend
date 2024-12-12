@@ -1,9 +1,9 @@
 from typing import Optional, List, Dict, Any
 from app.domain.interfaces.integrations.openai.adapter import IOpenAIAdapter
-from app.domain.interfaces.services.openai.thread_service import IThreadService
+from app.domain.interfaces.services.openai.thread_service import IOpenAIThreadService
 
 
-class ThreadService(IThreadService):
+class OpenAIThreadService(IOpenAIThreadService):
     """Service for managing OpenAI threads and messages."""
 
     def __init__(self, adapter: IOpenAIAdapter):

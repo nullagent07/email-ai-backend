@@ -1,12 +1,12 @@
 from typing import Optional, Tuple
 
 from app.domain.interfaces.integrations.openai.adapter import IOpenAIAdapter
-from app.domain.interfaces.services.openai.assistant_service import IAssistantService
-from app.domain.interfaces.services.openai.thread_service import IThreadService
+from app.domain.interfaces.services.openai.assistant_service import IOpenAIAssistantService
+from app.domain.interfaces.services.openai.thread_service import IOpenAIThreadService
 
 from app.infrastructure.integrations.openai.adapter import OpenAIAdapter
-from app.applications.services.openai.assistant_service import AssistantService
-from app.applications.services.openai.thread_service import ThreadService
+from app.applications.services.openai.assistant_service import OpenAIAssistantService
+from app.applications.services.openai.thread_service import OpenAIThreadService
 
 
 class OpenAIFactory:
@@ -46,7 +46,7 @@ class OpenAIFactory:
         organization: Optional[str] = None,
         api_base: Optional[str] = None,
         timeout: Optional[float] = None
-    ) -> IAssistantService:
+    ) -> IOpenAIAssistantService:
         """
         Create AssistantService with its own adapter.
         
@@ -65,7 +65,7 @@ class OpenAIFactory:
             api_base=api_base,
             timeout=timeout
         )
-        return AssistantService(adapter)
+        return OpenAIAssistantService(adapter)
     
     @staticmethod
     async def create_thread_service(
@@ -73,7 +73,7 @@ class OpenAIFactory:
         organization: Optional[str] = None,
         api_base: Optional[str] = None,
         timeout: Optional[float] = None
-    ) -> IThreadService:
+    ) -> IOpenAIThreadService:
         """
         Create ThreadService with its own adapter.
         
@@ -92,7 +92,7 @@ class OpenAIFactory:
             api_base=api_base,
             timeout=timeout
         )
-        return ThreadService(adapter)
+        return OpenAIThreadService(adapter)
     
     @staticmethod
     async def create_services(
@@ -100,7 +100,7 @@ class OpenAIFactory:
         organization: Optional[str] = None,
         api_base: Optional[str] = None,
         timeout: Optional[float] = None
-    ) -> Tuple[IAssistantService, IThreadService]:
+    ) -> Tuple[IOpenAIAssistantService, IOpenAIThreadService]:
         """
         Create all OpenAI services with a shared adapter.
         
@@ -121,6 +121,6 @@ class OpenAIFactory:
         )
         
         return (
-            AssistantService(adapter),
-            ThreadService(adapter)
+            OpenAIAssistantService(adapter),
+            OpenAIThreadService(adapter)
         )

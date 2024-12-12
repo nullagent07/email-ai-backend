@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 
 
-class IThreadService(ABC):
+class IOpenAIThreadService(ABC):
     """Interface for managing OpenAI threads and messages."""
 
     @abstractmethod

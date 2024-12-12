@@ -1,9 +1,9 @@
 from typing import Optional, List, Dict, Any
 from app.domain.interfaces.integrations.openai.adapter import IOpenAIAdapter
-from app.domain.interfaces.services.openai.assistant_service import IAssistantService
+from app.domain.interfaces.services.openai.assistant_service import IOpenAIAssistantService
 
 
-class AssistantService(IAssistantService):
+class OpenAIAssistantService(IOpenAIAssistantService):
     """Service for managing OpenAI assistants."""
 
     def __init__(self, adapter: IOpenAIAdapter):
@@ -29,12 +29,12 @@ class AssistantService(IAssistantService):
             instructions: Instructions for the assistant
             capabilities: List of capabilities to enable
             model: Optional model to use (defaults to adapter's DEFAULT_MODEL)
-            description: Optional description
+            description: Optional assistant description
             
         Returns:
-            Dict containing the created assistant's information
+            Created assistant information
         """
-        return await self._adapter.create_assistant_with_capabilities(
+        return await self._adapter.create_assistant(
             name=name,
             instructions=instructions,
             capabilities=capabilities,
@@ -45,9 +45,9 @@ class AssistantService(IAssistantService):
     async def update_assistant(
         self,
         assistant_id: str,
-        capabilities: Optional[List[str]] = None,
         name: Optional[str] = None,
         instructions: Optional[str] = None,
+        capabilities: Optional[List[str]] = None,
         model: Optional[str] = None,
         description: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -56,21 +56,20 @@ class AssistantService(IAssistantService):
         
         Args:
             assistant_id: ID of the assistant to update
-            capabilities: Optional new list of capabilities
             name: Optional new name
             instructions: Optional new instructions
+            capabilities: Optional new capabilities
             model: Optional new model
             description: Optional new description
             
         Returns:
-            Dict containing the updated assistant's information
+            Updated assistant information
         """
-        capabilities = capabilities or []
-        return await self._adapter.update_assistant_capabilities(
+        return await self._adapter.update_assistant(
             assistant_id=assistant_id,
-            capabilities=capabilities,
             name=name,
             instructions=instructions,
+            capabilities=capabilities,
             model=model,
             description=description
         )
@@ -83,6 +82,6 @@ class AssistantService(IAssistantService):
             assistant_id: ID of the assistant to delete
             
         Returns:
-            bool: True if deletion was successful
+            True if deletion was successful
         """
-        return await self._adapter.remove_assistant(assistant_id)
+        return await self._adapter.delete_assistant(assistant_id)
