@@ -51,19 +51,29 @@ class AssistantProfileService(IAssistantProfileService):
         assistant_id: str,
         user_id: UUID,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> Optional[Dict[str, Any]]:
         """Update an existing assistant profile."""
-        profile = await self._profiles_repository.update(
-            assistant_id=assistant_id,
-            user_id=user_id,
-            **kwargs
-        )
+        # Проверяем, что профиль существует и принадлежит пользователю
+        profile = await self._profiles_repository.get_by_id(assistant_id)
+        if not profile or profile.creator_user_id != user_id:
+            return None
+
+        # Обновляем только инструкции, так как это единственное, что можно обновить в репозитории
+        if 'instruction' in kwargs:
+            updated_profile = await self._profiles_repository.update(
+                profile_id=assistant_id,
+                instruction=kwargs['instruction']
+            )
+            if not updated_profile:
+                return None
+            profile = updated_profile
+
         return {
             "profile_id": profile.id,
             "instruction": profile.instruction,
             "name": profile.name,
             "capabilities": profile.capabilities
-        } if profile else None
+        }
     
     async def delete_profile(self, assistant_id: str, user_id: UUID) -> bool:
         """Delete an assistant profile."""

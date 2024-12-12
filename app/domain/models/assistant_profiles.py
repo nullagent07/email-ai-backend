@@ -1,11 +1,14 @@
 import uuid
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String, Text, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.models.base import Base
 from app.domain.models.users import Users
+
+if TYPE_CHECKING:
+    from app.domain.models.email_threads import EmailThreads
 
 
 class AssistantProfiles(Base):

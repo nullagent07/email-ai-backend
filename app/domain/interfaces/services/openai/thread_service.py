@@ -6,6 +6,25 @@ class IOpenAIThreadService(ABC):
     """Interface for managing OpenAI threads and messages."""
 
     @abstractmethod
+    async def initialize(
+        self,
+        api_key: str,
+        organization: Optional[str] = None,
+        api_base: Optional[str] = None,
+        timeout: Optional[float] = None
+    ) -> None:
+        """
+        Initialize the OpenAI adapter.
+        
+        Args:
+            api_key: OpenAI API key
+            organization: Optional organization ID
+            api_base: Optional API base URL
+            timeout: Optional request timeout
+        """
+        pass
+
+    @abstractmethod
     async def create_thread(
         self,
         messages: Optional[List[Dict[str, Any]]] = None,

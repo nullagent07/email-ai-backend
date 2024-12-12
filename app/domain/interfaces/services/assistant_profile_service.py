@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from uuid import UUID
 from abc import ABC, abstractmethod
 
@@ -28,8 +28,14 @@ class IAssistantProfileService(ABC):
         assistant_id: str,
         user_id: UUID,
         **kwargs
-    ) -> Dict[str, Any]:
-        """Update an existing assistant profile."""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Update an existing assistant profile.
+        
+        Returns:
+            Dict with updated profile info if successful, None if profile not found
+            or user doesn't have permission to update it.
+        """
         pass
     
     @abstractmethod

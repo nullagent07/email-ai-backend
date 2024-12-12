@@ -3,11 +3,25 @@ from typing import Optional, List, Dict, Any
 
 
 class IOpenAIAssistantService(ABC):
-    """Interface for managing OpenAI assistants."""
+    """Interface for OpenAI assistant service."""
 
     @abstractmethod
-    async def initialize(self) -> None:
-        """Initialize the OpenAI adapter."""
+    async def initialize(
+        self,
+        api_key: str,
+        organization: Optional[str] = None,
+        api_base: Optional[str] = None,
+        timeout: Optional[float] = None
+    ) -> None:
+        """
+        Initialize the OpenAI adapter.
+        
+        Args:
+            api_key: OpenAI API key
+            organization: Optional organization ID
+            api_base: Optional API base URL
+            timeout: Optional request timeout
+        """
         pass
 
     @abstractmethod

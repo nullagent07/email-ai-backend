@@ -4,14 +4,33 @@ from app.domain.interfaces.services.openai.thread_service import IOpenAIThreadSe
 
 
 class OpenAIThreadService(IOpenAIThreadService):
-    """Service for managing OpenAI threads and messages."""
+    """Service for managing OpenAI threads."""
 
     def __init__(self, adapter: IOpenAIAdapter):
         self._adapter = adapter
     
-    async def initialize(self) -> None:
-        """Initialize the OpenAI adapter."""
-        await self._adapter.initialize_client()
+    async def initialize(
+        self,
+        api_key: str,
+        organization: Optional[str] = None,
+        api_base: Optional[str] = None,
+        timeout: Optional[float] = None
+    ) -> None:
+        """
+        Initialize the OpenAI adapter.
+        
+        Args:
+            api_key: OpenAI API key
+            organization: Optional organization ID
+            api_base: Optional API base URL
+            timeout: Optional request timeout
+        """
+        await self._adapter.initialize_client(
+            api_key=api_key,
+            organization=organization,
+            api_base=api_base,
+            timeout=timeout
+        )
     
     async def create_thread(
         self,

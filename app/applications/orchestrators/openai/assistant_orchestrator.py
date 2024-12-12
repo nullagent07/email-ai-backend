@@ -3,17 +3,17 @@ from uuid import UUID
 
 from app.domain.interfaces.orchestrators.assistant_orchestrator import IAssistantOrchestrator
 from app.domain.interfaces.repositories.assistant_profiles_repository import IAssistantProfilesRepository
+from app.domain.interfaces.services.openai.assistant_service import IOpenAIAssistantService
+from app.domain.interfaces.services.openai.thread_service import IOpenAIThreadService
 from app.applications.factories.openai_factory import OpenAIFactory
-from app.applications.services.openai.assistant_service import OpenAIAssistantService
-from app.applications.services.openai.thread_service import OpenAIThreadService
 
 
 class AssistantOrchestrator(IAssistantOrchestrator):
     """Orchestrator for managing OpenAI assistants and threads."""
 
     def __init__(self, profiles_repository: IAssistantProfilesRepository):
-        self._openai_assistant_service: Optional[OpenAIAssistantService] = None
-        self._openai_thread_service: Optional[OpenAIThreadService] = None
+        self._openai_assistant_service: Optional[IOpenAIAssistantService] = None
+        self._openai_thread_service: Optional[IOpenAIThreadService] = None
         self._profiles_repository = profiles_repository
     
     async def initialize(
@@ -135,10 +135,13 @@ class AssistantOrchestrator(IAssistantOrchestrator):
         
         # Update profile if instructions changed
         if instructions:
-            profile = await self._profiles_repository.update(
+            updated_profile = await self._profiles_repository.update(
                 profile_id=assistant_id,
                 instruction=instructions
             )
+            if not updated_profile:
+                return None
+            profile = updated_profile
         
         # Return combined information
         return {

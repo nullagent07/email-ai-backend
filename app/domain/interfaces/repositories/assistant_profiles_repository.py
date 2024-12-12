@@ -12,6 +12,8 @@ class IAssistantProfilesRepository(ABC):
         self,
         creator_user_id: UUID,
         instruction: str,
+        name: str,
+        capabilities: List[str],
         assistant_id: str
     ) -> AssistantProfiles:
         """

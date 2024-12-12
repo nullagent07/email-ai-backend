@@ -1,10 +1,10 @@
 from collections.abc import AsyncGenerator
-from typing import Annotated, Optional
+from typing import Annotated, Optional, cast
 from uuid import UUID
 
 from fastapi import Depends, Path, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from authlib.integrations.starlette_client import OAuth
+from authlib.integrations.starlette_client import OAuth, StarletteOAuth2App
 
 from core.settings import get_app_settings
 
@@ -30,7 +30,7 @@ app_settings = get_app_settings()
 oauth = OAuth()
 
 # Регистрируем Google OAuth клиент
-google_oauth_client = oauth.register(
+google_oauth_client: StarletteOAuth2App = cast(StarletteOAuth2App, oauth.register(
     name='google',
     client_id=app_settings.google_client_id,
     client_secret=app_settings.google_client_secret,
@@ -39,7 +39,7 @@ google_oauth_client = oauth.register(
         'scope': 'openid email profile',
         'token_endpoint_auth_method': 'client_secret_post'
     }
-)
+))
 
 # Формируем строку подключения к PostgreSQL
 pg_connection_string = (
