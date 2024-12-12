@@ -59,3 +59,5 @@ class AssistantProfileResponse(BaseModel):
     """Schema for assistant profile response without OpenAI details."""
     profile_id: str = Field(..., description="ID of the assistant profile")
     instruction: str = Field(..., description="Instructions for the assistant")
+    name: str = Field(..., description="Name of the assistant")
+    capabilities: List[str] = Field(..., description="List of capabilities enabled for the assistant")

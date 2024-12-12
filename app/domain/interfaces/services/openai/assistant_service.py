@@ -6,6 +6,11 @@ class IOpenAIAssistantService(ABC):
     """Interface for managing OpenAI assistants."""
 
     @abstractmethod
+    async def initialize(self) -> None:
+        """Initialize the OpenAI adapter."""
+        pass
+
+    @abstractmethod
     async def create_assistant(
         self,
         name: str,
@@ -33,9 +38,9 @@ class IOpenAIAssistantService(ABC):
     async def update_assistant(
         self,
         assistant_id: str,
-        capabilities: Optional[List[str]] = None,
         name: Optional[str] = None,
         instructions: Optional[str] = None,
+        capabilities: Optional[List[str]] = None,
         model: Optional[str] = None,
         description: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -44,9 +49,9 @@ class IOpenAIAssistantService(ABC):
         
         Args:
             assistant_id: ID of the assistant to update
-            capabilities: Optional new list of capabilities
             name: Optional new name
             instructions: Optional new instructions
+            capabilities: Optional new capabilities
             model: Optional new model
             description: Optional new description
             

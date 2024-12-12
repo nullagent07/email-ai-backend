@@ -26,7 +26,6 @@ class OpenAIClient(IOpenAIClient):
         instructions: str,
         model: str,
         tools: Optional[List[Dict[str, Any]]] = None,
-        file_ids: Optional[List[str]] = None,
         description: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not self._client:
@@ -37,7 +36,6 @@ class OpenAIClient(IOpenAIClient):
             instructions=instructions,
             model=model,
             tools=tools or [],
-            file_ids=file_ids or [],
             description=description
         )
         return response.model_dump()
@@ -49,7 +47,6 @@ class OpenAIClient(IOpenAIClient):
         instructions: Optional[str] = None,
         model: Optional[str] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
-        file_ids: Optional[List[str]] = None,
         description: Optional[str] = None,
     ) -> Dict[str, Any]:
         if not self._client:
@@ -64,8 +61,6 @@ class OpenAIClient(IOpenAIClient):
             update_params["model"] = model
         if tools is not None:
             update_params["tools"] = tools
-        if file_ids is not None:
-            update_params["file_ids"] = file_ids
         if description is not None:
             update_params["description"] = description
 

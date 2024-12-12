@@ -34,7 +34,7 @@ class OpenAIAssistantService(IOpenAIAssistantService):
         Returns:
             Created assistant information
         """
-        return await self._adapter.create_assistant(
+        return await self._adapter.create_assistant_with_capabilities(
             name=name,
             instructions=instructions,
             capabilities=capabilities,
@@ -65,7 +65,8 @@ class OpenAIAssistantService(IOpenAIAssistantService):
         Returns:
             Updated assistant information
         """
-        return await self._adapter.update_assistant(
+        capabilities = capabilities or []
+        return await self._adapter.update_assistant_capabilities(
             assistant_id=assistant_id,
             name=name,
             instructions=instructions,
@@ -84,4 +85,4 @@ class OpenAIAssistantService(IOpenAIAssistantService):
         Returns:
             True if deletion was successful
         """
-        return await self._adapter.delete_assistant(assistant_id)
+        return await self._adapter.remove_assistant(assistant_id)

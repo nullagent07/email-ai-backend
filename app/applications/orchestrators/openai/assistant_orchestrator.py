@@ -78,7 +78,9 @@ class AssistantOrchestrator(IAssistantOrchestrator):
         profile = await self._profiles_repository.create(
             creator_user_id=creator_user_id,
             instruction=instructions,
-            assistant_id=openai_assistant["id"]
+            assistant_id=openai_assistant["id"],
+            name=name,
+            capabilities=capabilities
         )
         
         # Return combined information

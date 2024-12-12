@@ -47,6 +47,15 @@ class OpenAIAdapter(IOpenAIAdapter):
                 tools.append(self._capability_to_tools_map[capability])
         return tools
 
+    def _tools_to_capabilities(self, tools: List[Dict[str, Any]]) -> List[str]:
+        """Convert OpenAI tools configuration back to capability names."""
+        capabilities = []
+        tool_to_capability = {v["type"]: k for k, v in self._capability_to_tools_map.items()}
+        for tool in tools:
+            if tool["type"] in tool_to_capability:
+                capabilities.append(tool_to_capability[tool["type"]])
+        return capabilities
+
     async def create_assistant_with_capabilities(
         self,
         name: str,
@@ -68,13 +77,25 @@ class OpenAIAdapter(IOpenAIAdapter):
         client = self.get_client()
         tools = self._capabilities_to_tools(capabilities)
         
-        return await client.create_assistant(
+        response = await client.create_assistant(
             name=name,
             instructions=instructions,
             model=model or self.DEFAULT_MODEL,
             tools=tools,
             description=description
         )
+        
+        # Convert response to expected format
+        return {
+            "id": response["id"],
+            "name": response["name"],
+            "instructions": response["instructions"],
+            "capabilities": self._tools_to_capabilities(response["tools"]),
+            "model": response["model"],
+            "description": response.get("description"),
+            "created_at": response["created_at"],
+            "modified_at": response.get("modified_at")
+        }
 
     async def update_assistant_capabilities(
         self,
@@ -99,7 +120,7 @@ class OpenAIAdapter(IOpenAIAdapter):
         client = self.get_client()
         tools = self._capabilities_to_tools(capabilities)
         
-        return await client.update_assistant(
+        response = await client.update_assistant(
             assistant_id=assistant_id,
             name=name,
             instructions=instructions,
@@ -107,6 +128,18 @@ class OpenAIAdapter(IOpenAIAdapter):
             tools=tools,
             description=description
         )
+        
+        # Convert response to expected format
+        return {
+            "id": response["id"],
+            "name": response["name"],
+            "instructions": response["instructions"],
+            "capabilities": self._tools_to_capabilities(response["tools"]),
+            "model": response["model"],
+            "description": response.get("description"),
+            "created_at": response.get("created_at"),
+            "modified_at": response.get("modified_at")
+        }
 
     async def remove_assistant(self, assistant_id: str) -> bool:
         """Remove an assistant and clean up any associated resources."""

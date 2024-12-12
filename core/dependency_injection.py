@@ -12,6 +12,7 @@ from app.domain.interfaces.services.user_service import IUserService
 from app.domain.interfaces.services.oauth_service import IOAuthService
 from app.domain.interfaces.orchestrators.assistant_orchestrator import IAssistantOrchestrator
 from app.domain.interfaces.repositories.assistant_profiles_repository import IAssistantProfilesRepository
+from app.domain.interfaces.services.assistant_profile_service import IAssistantProfileService
 
 from app.applications.services.user_service import UserService
 from app.applications.services.oauth_service import OAuthService
@@ -19,6 +20,7 @@ from app.applications.orchestrators.auth_orchestrator import AuthOrchestrator
 from app.applications.orchestrators.openai.assistant_orchestrator import AssistantOrchestrator
 from app.applications.factories.auth_factory import AuthServiceFactory
 from app.infrastructure.repositories.assistant_profiles_repository import AssistantProfilesRepository
+from app.applications.services.assistant_profile_service import AssistantProfileService
 
 from app.domain.interfaces.services.auth_service import IAuthenticationService
 
@@ -89,6 +91,12 @@ async def get_assistant_profiles_repository(
     """Возвращает экземпляр AssistantProfilesRepository."""
     return AssistantProfilesRepository(session=db)
 
+async def get_assistant_profile_service(
+    profiles_repository: Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)]
+) -> IAssistantProfileService:
+    """Возвращает экземпляр AssistantProfileService."""
+    return AssistantProfileService(profiles_repository=profiles_repository)
+
 async def get_assistant_orchestrator(
     profiles_repository: Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)],
     request: Request
@@ -153,4 +161,5 @@ OAuthServiceDependency = Annotated[OAuthService, Depends(get_oauth_service)]
 AuthOrchestratorDependency = Annotated[AuthOrchestrator, Depends(get_auth_orchestrator)]
 AssistantOrchestratorDependency = Annotated[IAssistantOrchestrator, Depends(get_assistant_orchestrator)]
 AssistantProfilesRepositoryDependency = Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)]
+AssistantProfileServiceDependency = Annotated[IAssistantProfileService, Depends(get_assistant_profile_service)]
 CurrentUserDependency = Annotated[UUID, Depends(get_current_user_id)]

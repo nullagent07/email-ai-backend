@@ -17,16 +17,21 @@ class AssistantProfilesRepository(IAssistantProfilesRepository):
         self,
         creator_user_id: UUID,
         instruction: str,
-        assistant_id: str
+        assistant_id: str,
+        name: str,
+        capabilities: List[str]
     ) -> AssistantProfiles:
         """Create a new assistant profile."""
         profile = AssistantProfiles(
             id=assistant_id,
             creator_user_id=creator_user_id,
-            instruction=instruction
+            name=name,
+            instruction=instruction,
+            capabilities=capabilities
         )
         self._session.add(profile)
         await self._session.flush()
+        await self._session.commit()
         return profile
     
     async def get_by_id(self, profile_id: str) -> Optional[AssistantProfiles]:
@@ -53,6 +58,7 @@ class AssistantProfilesRepository(IAssistantProfilesRepository):
         if profile and instruction is not None:
             profile.instruction = instruction
             await self._session.flush()
+            await self._session.commit()
         return profile
     
     async def delete(self, profile_id: str) -> bool:
@@ -61,5 +67,6 @@ class AssistantProfilesRepository(IAssistantProfilesRepository):
         if profile:
             await self._session.delete(profile)
             await self._session.flush()
+            await self._session.commit()
             return True
         return False

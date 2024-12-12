@@ -6,7 +6,11 @@ from app.presentation.schemas.assistant import (
     AssistantResponse,
     AssistantProfileResponse
 )
-from core.dependency_injection import AssistantOrchestratorDependency, CurrentUserDependency
+from core.dependency_injection import (
+    AssistantOrchestratorDependency,
+    AssistantProfileServiceDependency,
+    CurrentUserDependency
+)
 
 
 router = APIRouter(prefix="/assistants", tags=["assistants"])
@@ -148,14 +152,14 @@ async def delete_assistant(
     summary="Get all assistants for current user"
 )
 async def get_user_assistants(
-    orchestrator: AssistantOrchestratorDependency,
+    profile_service: AssistantProfileServiceDependency,
     user_id: CurrentUserDependency
 ):
     """
     Get all assistants for the authenticated user.
     
     Args:
-        orchestrator: Assistant orchestrator dependency
+        profile_service: Assistant profile service dependency
         user_id: ID of the authenticated user
         
     Returns:
@@ -165,7 +169,7 @@ async def get_user_assistants(
         HTTPException: If retrieving assistants fails
     """
     try:
-        return await orchestrator.get_user_assistants(user_id)
+        return await profile_service.get_user_assistants(user_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
