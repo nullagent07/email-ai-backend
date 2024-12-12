@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.models.email_threads import EmailThreads
+from app.domain.models.email_threads import EmailThreads, EmailThreadStatus
 from app.domain.interfaces.repositories.email_thread_repository import IEmailThreadRepository
 from app.presentation.schemas.email_thread import EmailThreadCreate
 
@@ -35,6 +35,8 @@ class EmailThreadRepository(IEmailThreadRepository):
         thread_id: str,  
     ) -> EmailThreads:
         """Create a new email thread."""
+        if thread_data.status is None:
+            thread_data.status = EmailThreadStatus.stopped
         thread = EmailThreads(
             id=thread_id,  
             user_id=user_id,
@@ -43,6 +45,7 @@ class EmailThreadRepository(IEmailThreadRepository):
             recipient_name=thread_data.recipient_name,
             assistant_profile_id=assistant_id,
             instructions=thread_data.instructions,
+            status=thread_data.status,
         )
         self.db_session.add(thread)
         await self.db_session.commit()

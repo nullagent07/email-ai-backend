@@ -31,6 +31,7 @@ async def get_threads(
             recipient_name=thread.recipient_name,
             assistant_profile_id=thread.assistant_profile_id,
             instructions=thread.instructions,
+            status=thread.status,
         )
         for thread in threads
     ]
@@ -58,4 +59,5 @@ async def create_thread(
         recipient_name=thread.recipient_name,
         assistant_profile_id=thread.assistant_profile_id,
         instructions=thread.instructions,
+        status=thread.status,
     )

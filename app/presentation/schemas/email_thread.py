@@ -1,5 +1,7 @@
 from typing import Optional
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, EmailStr, Field
+
+from app.domain.models.email_threads import EmailThreadStatus
 
 
 class EmailThreadCreate(BaseModel):
@@ -7,6 +9,7 @@ class EmailThreadCreate(BaseModel):
     recipient_email: EmailStr = Field(..., description="Recipient's email")
     recipient_name: Optional[str] = Field(None, description="Recipient's name")
     instructions: str = Field(..., description="Instructions for the assistant for this thread")
+    status: Optional[EmailThreadStatus] = Field(default=EmailThreadStatus.stopped, description="Thread status")
 
 
 class EmailThreadResponse(BaseModel):
@@ -17,3 +20,4 @@ class EmailThreadResponse(BaseModel):
     recipient_name: Optional[str] = Field(None, description="Recipient's name")
     assistant_profile_id: str = Field(..., description="Assistant profile ID")
     instructions: str = Field(..., description="Instructions for the assistant for this thread")
+    status: EmailThreadStatus = Field(..., description="Thread status")
