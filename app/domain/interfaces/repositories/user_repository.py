@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, Optional
+from uuid import UUID
 from app.domain.models.users import Users
 
 class IUserRepository(ABC):
@@ -11,6 +12,11 @@ class IUserRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_user_by_email(self, email: str) -> Users:
+    async def get_user_by_email(self, email: str) -> Optional[Users]:
         """Получает пользователя по email."""
+        pass
+
+    @abstractmethod
+    async def get_user_by_id(self, user_id: UUID) -> Optional[Users]:
+        """Получает пользователя по ID."""
         pass

@@ -2,7 +2,7 @@ from typing import Annotated
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Request, HTTPException, Cookie
+from fastapi import APIRouter, Request, HTTPException, Cookie, Depends
 from fastapi.security import OAuth2PasswordBearer
 
 from app.presentation.schemas.user import UserResponse
@@ -16,9 +16,9 @@ router = APIRouter(prefix="/user", tags=["user"])
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
     request: Request,
+    oauth_service: OAuthServiceDependency,
+    user_service: UserServiceDependency,
     access_token: Annotated[str | None, Cookie()] = None,
-    oauth_service: OAuthServiceDependency = None,
-    user_service: UserServiceDependency = None,
 ):
     """Получение информации о текущем пользователе."""
     if not access_token:
@@ -35,13 +35,6 @@ async def get_current_user(
             detail="Недействительный токен"
         )
 
-    # Проверяем срок действия токена
-    if credentials.expires_at < datetime.now():
-        raise HTTPException(
-            status_code=401,
-            detail="Срок действия токена истек"
-        )
-
     # Получаем пользователя
     user = await user_service.find_user_by_id(credentials.user_id)
     if not user:
@@ -52,5 +45,5 @@ async def get_current_user(
 
     return UserResponse(
         name=user.name,
-        email=user.email
+        email=user.email or ""
     )

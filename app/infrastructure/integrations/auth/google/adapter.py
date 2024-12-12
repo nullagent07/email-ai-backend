@@ -1,25 +1,25 @@
 from typing import Dict
 
 from starlette.requests import Request
+from starlette.datastructures import URL
 from authlib.integrations.starlette_client import StarletteOAuth2App
 
 from app.domain.interfaces.integrations.auth.google.adapter import IGoogleAuthAdapter
 from app.infrastructure.integrations.auth.google.client import AuthlibGoogleClient
 from core.settings import get_app_settings
-# from core.dependency_injection import google_oauth_client
 
 settings = get_app_settings()
 
 class GoogleAuthAdapter(IGoogleAuthAdapter):
     """Адаптер для аутентификации через Google OAuth."""
 
-    def __init__(self, google_oauth_client: StarletteOAuth2App = None):
+    def __init__(self, google_oauth_client: StarletteOAuth2App):
         """Инициализация адаптера."""
         self._client = AuthlibGoogleClient(google_oauth_client)
 
     async def get_authorization_url(self, request: Request) -> str:
         """Получение URL авторизации с состоянием."""
-        redirect_uri = request.url_for('callback', provider='google')
+        redirect_uri = str(request.url_for('callback', provider='google'))
         return await self._client.get_authorization_url(redirect_uri=redirect_uri, request=request)
 
     async def authenticate(self, request: Request) -> Dict:

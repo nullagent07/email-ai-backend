@@ -1,3 +1,6 @@
+from typing import Optional
+from uuid import UUID
+
 from app.domain.models.users import Users
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -18,7 +21,7 @@ class UserRepository(IUserRepository):
             await self.db_session.commit()
             return new_user
 
-    async def get_user_by_email(self, email: str) -> Users:
+    async def get_user_by_email(self, email: str) -> Optional[Users]:
         """Получает пользователя по email."""
         async with self.db_session.begin():
             result = await self.db_session.execute(
@@ -26,10 +29,7 @@ class UserRepository(IUserRepository):
             )
             return result.scalar_one_or_none()
 
-    async def get_user_by_id(self, user_id: str) -> Users:
+    async def get_user_by_id(self, user_id: UUID) -> Optional[Users]:
         """Получает пользователя по ID."""
         result = await self.db_session.execute(select(Users).where(Users.id == user_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
+        return result.scalar_one_or_none()

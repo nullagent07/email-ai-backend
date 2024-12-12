@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 class AssistantCreate(BaseModel):
     """Schema for creating a new assistant."""
     name: str = Field(..., description="Name of the assistant")
-    instructions: str = Field(..., description="Instructions for the assistant")
+    instruction: str = Field(..., description="Instructions for the assistant")
     capabilities: List[str] = Field(
         ...,
         description="List of capabilities to enable for the assistant"

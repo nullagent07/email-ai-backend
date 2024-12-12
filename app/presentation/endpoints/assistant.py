@@ -45,7 +45,7 @@ async def create_assistant(
         assistant = await orchestrator.create_assistant(
             creator_user_id=user_id,
             name=data.name,
-            instructions=data.instructions,
+            instructions=data.instruction,
             capabilities=data.capabilities,
             model=data.model,
             description=data.description

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, Optional
 from app.domain.models.users import Users
+from uuid import UUID
 
 class IUserService(ABC):
     """Интерфейс для сервиса пользователей."""
@@ -11,11 +12,11 @@ class IUserService(ABC):
         pass
 
     @abstractmethod
-    async def find_user_by_email(self, email: str) -> Users:
+    async def find_user_by_email(self, email: str) -> Optional[Users]:
         """Находит пользователя по email."""
         pass
 
     @abstractmethod
-    async def find_user_by_id(self, user_id: str) -> "Users":
+    async def find_user_by_id(self, user_id: UUID) -> Optional[Users]:
         """Находит пользователя по ID."""
         pass

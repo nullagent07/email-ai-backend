@@ -99,16 +99,24 @@ async def get_assistant_profile_service(
 
 async def get_assistant_orchestrator(
     profiles_repository: Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)],
-    request: Request
 ) -> IAssistantOrchestrator:
     """Возвращает экземпляр AssistantOrchestrator."""
+    if not app_settings.openai_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OpenAI API key is not configured"
+        )
+        
     orchestrator = AssistantOrchestrator(profiles_repository=profiles_repository)
-    
-    # Инициализируем OpenAI клиент только если это не GET /api/assistants
-    if not (request.method == "GET" and request.url.path == "/api/assistants"):
+    try:
         await orchestrator.initialize(
             api_key=app_settings.openai_api_key,
             organization=app_settings.openai_organization
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Failed to initialize OpenAI client: {str(e)}"
         )
     
     return orchestrator
