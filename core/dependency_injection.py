@@ -13,6 +13,8 @@ from app.domain.interfaces.services.oauth_service import IOAuthService
 from app.domain.interfaces.orchestrators.assistant_orchestrator import IAssistantOrchestrator
 from app.domain.interfaces.repositories.assistant_profiles_repository import IAssistantProfilesRepository
 from app.domain.interfaces.services.assistant_profile_service import IAssistantProfileService
+from app.domain.interfaces.repositories.email_thread_repository import IEmailThreadRepository
+from app.domain.interfaces.services.email_thread_service import IEmailThreadService
 
 from app.applications.services.user_service import UserService
 from app.applications.services.oauth_service import OAuthService
@@ -21,6 +23,8 @@ from app.applications.orchestrators.openai.assistant_orchestrator import Assista
 from app.applications.factories.auth_factory import AuthServiceFactory
 from app.infrastructure.repositories.assistant_profiles_repository import AssistantProfilesRepository
 from app.applications.services.assistant_profile_service import AssistantProfileService
+from app.infrastructure.repositories.email_thread_repository import EmailThreadRepository
+from app.applications.services.email_thread_service import EmailThreadService
 
 from app.domain.interfaces.services.auth_service import IAuthenticationService
 
@@ -128,6 +132,18 @@ def get_auth_orchestrator(
 ) -> AuthOrchestrator:
     return AuthOrchestrator(user_service, oauth_service, auth_service)
 
+async def get_email_thread_repository(
+    db: Annotated[AsyncSession, Depends(get_db)]
+) -> IEmailThreadRepository:
+    """Get email thread repository instance."""
+    return EmailThreadRepository(db)
+
+async def get_email_thread_service(
+    repository: Annotated[IEmailThreadRepository, Depends(get_email_thread_repository)]
+) -> IEmailThreadService:
+    """Get email thread service instance."""
+    return EmailThreadService(repository)
+
 async def get_current_user_id(
     request: Request,
     oauth_service: Annotated[OAuthService, Depends(get_oauth_service)]
@@ -170,4 +186,6 @@ AuthOrchestratorDependency = Annotated[AuthOrchestrator, Depends(get_auth_orches
 AssistantOrchestratorDependency = Annotated[IAssistantOrchestrator, Depends(get_assistant_orchestrator)]
 AssistantProfilesRepositoryDependency = Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)]
 AssistantProfileServiceDependency = Annotated[IAssistantProfileService, Depends(get_assistant_profile_service)]
+EmailThreadRepositoryDependency = Annotated[IEmailThreadRepository, Depends(get_email_thread_repository)]
+EmailThreadServiceDependency = Annotated[IEmailThreadService, Depends(get_email_thread_service)]
 CurrentUserDependency = Annotated[UUID, Depends(get_current_user_id)]
