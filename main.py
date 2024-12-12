@@ -19,7 +19,7 @@ from core.settings import get_app_settings
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
-from app.presentation.endpoints import auth, health, user, assistant
+from app.presentation.endpoints import auth, health, user, assistant, email_thread
 from core.logger import setup_json_logging
 
 logger = logging.getLogger(__name__)
@@ -65,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix="/api")
     app.include_router(user.router, prefix="/api")
     app.include_router(assistant.router, prefix="/api")
+    app.include_router(email_thread.router, prefix="/api")
 
     app.add_exception_handler(RequestValidationError, custom_validation_exception_handler)  # type: ignore
     app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore
