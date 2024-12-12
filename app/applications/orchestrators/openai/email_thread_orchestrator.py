@@ -52,6 +52,13 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
         # Create thread in OpenAI
         openai_thread = await self._openai_thread_service.create_thread()
         
+        # Run assistant on the thread with instructions
+        await self._openai_thread_service.run_thread(
+            thread_id=openai_thread['id'],
+            assistant_id=assistant_id,
+            instructions=thread_data.instructions
+        )
+        
         # Save thread to database with OpenAI thread ID
         return await self._email_thread_service.create_thread(
             thread_id=openai_thread['id'],  # Используем ID треда из OpenAI как строку

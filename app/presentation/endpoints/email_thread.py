@@ -30,6 +30,7 @@ async def get_threads(
             recipient_email=thread.recipient_email,
             recipient_name=thread.recipient_name,
             assistant_profile_id=thread.assistant_profile_id,
+            instructions=thread.instructions,
         )
         for thread in threads
     ]
@@ -56,4 +57,5 @@ async def create_thread(
         recipient_email=thread.recipient_email,
         recipient_name=thread.recipient_name,
         assistant_profile_id=thread.assistant_profile_id,
+        instructions=thread.instructions,
     )

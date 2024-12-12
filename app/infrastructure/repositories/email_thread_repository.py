@@ -42,6 +42,7 @@ class EmailThreadRepository(IEmailThreadRepository):
             recipient_email=thread_data.recipient_email,
             recipient_name=thread_data.recipient_name,
             assistant_profile_id=assistant_id,
+            instructions=thread_data.instructions,
         )
         self.db_session.add(thread)
         await self.db_session.commit()

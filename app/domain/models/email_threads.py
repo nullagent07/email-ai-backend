@@ -20,6 +20,7 @@ class EmailThreads(Base):
     assistant_profile_id: Mapped[str] = mapped_column(
         ForeignKey("assistant_profiles.id", ondelete="CASCADE")
     )
+    instructions: Mapped[str] = mapped_column(String(1000))
 
     # Отношения
     user: Mapped[Users] = relationship(back_populates="threads")
