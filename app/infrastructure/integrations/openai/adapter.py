@@ -1,4 +1,7 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, cast, Literal
+import openai
+from openai.types.beta.assistant_tool_param import AssistantToolParam
+from openai.types.beta.thread_create_params import Message as ThreadMessage
 
 from app.domain.interfaces.integrations.openai.adapter import IOpenAIAdapter
 from app.infrastructure.integrations.openai.client import OpenAIClient
@@ -41,7 +44,7 @@ class OpenAIAdapter(IOpenAIAdapter):
 
     def _capabilities_to_tools(self, capabilities: List[str]) -> List[Dict[str, Any]]:
         """Convert capability names to OpenAI tools configuration."""
-        tools = []
+        tools: List[Dict[str, Any]] = []
         for capability in capabilities:
             if capability in self._capability_to_tools_map:
                 tools.append(self._capability_to_tools_map[capability])
@@ -100,9 +103,9 @@ class OpenAIAdapter(IOpenAIAdapter):
     async def update_assistant_capabilities(
         self,
         assistant_id: str,
-        capabilities: List[str],
         name: Optional[str] = None,
         instructions: Optional[str] = None,
+        capabilities: Optional[List[str]] = None,
         model: Optional[str] = None,
         description: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -111,14 +114,14 @@ class OpenAIAdapter(IOpenAIAdapter):
         
         Args:
             assistant_id: ID of the assistant to update
-            capabilities: New list of capability names
             name: Optional new name for the assistant
             instructions: Optional new base instructions
+            capabilities: Optional new list of capability names
             model: Optional new model to use
             description: Optional new description
         """
         client = self.get_client()
-        tools = self._capabilities_to_tools(capabilities)
+        tools = self._capabilities_to_tools(capabilities) if capabilities else None
         
         response = await client.update_assistant(
             assistant_id=assistant_id,
@@ -145,3 +148,70 @@ class OpenAIAdapter(IOpenAIAdapter):
         """Remove an assistant and clean up any associated resources."""
         client = self.get_client()
         return await client.delete_assistant(assistant_id)
+
+    async def create_thread(
+        self,
+        messages: Optional[List[Dict[str, Any]]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Create a new thread."""
+        client = self.get_client()
+        return await client.create_thread(
+            messages=messages,
+            metadata=metadata
+        )
+
+    async def add_message_to_thread(
+        self,
+        thread_id: str,
+        role: str,
+        content: str,
+        file_ids: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Add a message to an existing thread."""
+        client = self.get_client()
+        return await client.add_message_to_thread(
+            thread_id=thread_id,
+            role=cast(Literal["user", "assistant"], role),
+            content=content,
+            metadata=metadata
+        )
+
+    async def run_thread(
+        self,
+        thread_id: str,
+        assistant_id: str,
+        instructions: Optional[str] = None,
+        model: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Run an assistant on a thread."""
+        client = self.get_client()
+        return await client.run_thread(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            instructions=instructions,
+            model=model,
+            tools=tools,
+            metadata=metadata
+        )
+
+    async def get_thread_messages(
+        self,
+        thread_id: str,
+        limit: Optional[int] = None,
+        order: Optional[str] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get messages from a thread."""
+        client = self.get_client()
+        return await client.get_thread_messages(
+            thread_id=thread_id,
+            limit=limit,
+            order=order,
+            after=after,
+            before=before
+        )
