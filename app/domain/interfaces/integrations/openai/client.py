@@ -114,7 +114,6 @@ class IOpenAIClient(ABC):
         thread_id: str,
         role: str,
         content: str,
-        file_ids: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -124,7 +123,6 @@ class IOpenAIClient(ABC):
             thread_id: The ID of the thread to add the message to
             role: The role of the message sender (e.g., 'user', 'assistant')
             content: The content of the message
-            file_ids: Optional list of file IDs to attach to the message
             metadata: Optional metadata to attach to the message
             
         Returns:

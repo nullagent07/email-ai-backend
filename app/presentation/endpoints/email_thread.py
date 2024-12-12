@@ -3,8 +3,8 @@ from fastapi import APIRouter
 from starlette import status
 
 from app.domain.models.users import Users
-from app.presentation.schemas.email_thread import EmailThreadResponse
-from core.dependency_injection import EmailThreadServiceDependency, CurrentUserDependency
+from app.presentation.schemas.email_thread import EmailThreadResponse, EmailThreadCreate
+from core.dependency_injection import EmailThreadServiceDependency, CurrentUserDependency, EmailThreadOrchestratorDependency
 
 router = APIRouter(prefix="/email-threads", tags=["email-threads"])
 
@@ -33,3 +33,27 @@ async def get_threads(
         )
         for thread in threads
     ]
+@router.post(
+    "/{assistant_id}",
+    response_model=EmailThreadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_thread(
+    assistant_id: str,
+    thread_data: EmailThreadCreate,
+    current_user: CurrentUserDependency,
+    email_thread_orchestrator: EmailThreadOrchestratorDependency,
+) -> EmailThreadResponse:
+    """Create a new email thread."""
+    thread = await email_thread_orchestrator.create_thread_with_openai(
+        user_id=current_user,
+        assistant_id=assistant_id,
+        thread_data=thread_data
+    )
+    return EmailThreadResponse(
+        id=thread.id,
+        user_email=thread.user_email,
+        recipient_email=thread.recipient_email,
+        recipient_name=thread.recipient_name,
+        assistant_profile_id=thread.assistant_profile_id,
+    )

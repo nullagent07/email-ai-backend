@@ -166,14 +166,13 @@ class OpenAIAdapter(IOpenAIAdapter):
         thread_id: str,
         role: str,
         content: str,
-        file_ids: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Add a message to an existing thread."""
         client = self.get_client()
         return await client.add_message_to_thread(
             thread_id=thread_id,
-            role=cast(Literal["user", "assistant"], role),
+            role=role,
             content=content,
             metadata=metadata
         )

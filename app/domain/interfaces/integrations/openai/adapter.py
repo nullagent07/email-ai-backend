@@ -85,3 +85,48 @@ class IOpenAIAdapter(ABC):
             bool: True if deletion was successful
         """
         pass
+
+    @abstractmethod
+    async def create_thread(
+        self,
+        messages: Optional[List[Dict[str, Any]]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Create a new thread."""
+        pass
+
+    @abstractmethod
+    async def add_message_to_thread(
+        self,
+        thread_id: str,
+        role: str,
+        content: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Add a message to an existing thread."""
+        pass
+
+    @abstractmethod
+    async def run_thread(
+        self,
+        thread_id: str,
+        assistant_id: str,
+        instructions: Optional[str] = None,
+        model: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Run an assistant on a thread."""
+        pass
+
+    @abstractmethod
+    async def get_thread_messages(
+        self,
+        thread_id: str,
+        limit: Optional[int] = None,
+        order: Optional[str] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Get messages from a thread."""
+        pass

@@ -17,7 +17,7 @@ class Users(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255))
-    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True)
 
     # Отношения
     assistants: Mapped[List["AssistantProfiles"]] = relationship(back_populates="creator")

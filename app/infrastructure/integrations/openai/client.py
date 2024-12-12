@@ -119,7 +119,6 @@ class OpenAIClient(IOpenAIClient):
         thread_id: str,
         role: str,
         content: str,
-        file_ids: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Add a message to an existing thread."""

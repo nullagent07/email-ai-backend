@@ -48,7 +48,6 @@ class IOpenAIThreadService(ABC):
         thread_id: str,
         content: str,
         role: str = "user",
-        file_ids: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -58,7 +57,6 @@ class IOpenAIThreadService(ABC):
             thread_id: ID of the thread
             content: Message content
             role: Role of the message sender (default: "user")
-            file_ids: Optional list of file IDs to attach
             metadata: Optional metadata for the message
             
         Returns:
@@ -67,11 +65,14 @@ class IOpenAIThreadService(ABC):
         pass
 
     @abstractmethod
-    async def run_assistant(
+    async def run_thread(
         self,
         thread_id: str,
         assistant_id: str,
-        instructions: Optional[str] = None
+        instructions: Optional[str] = None,
+        model: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Run an assistant on a thread.
@@ -80,6 +81,9 @@ class IOpenAIThreadService(ABC):
             thread_id: ID of the thread
             assistant_id: ID of the assistant to run
             instructions: Optional additional instructions for this run
+            model: Optional model to use for this run
+            tools: Optional list of tools to use for this run
+            metadata: Optional metadata for this run
             
         Returns:
             Dict containing the run information

@@ -15,6 +15,7 @@ from app.domain.interfaces.repositories.assistant_profiles_repository import IAs
 from app.domain.interfaces.services.assistant_profile_service import IAssistantProfileService
 from app.domain.interfaces.repositories.email_thread_repository import IEmailThreadRepository
 from app.domain.interfaces.services.email_thread_service import IEmailThreadService
+from app.domain.interfaces.orchestrators.email_thread_orchestrator import IEmailThreadOrchestrator
 
 from app.applications.services.user_service import UserService
 from app.applications.services.oauth_service import OAuthService
@@ -25,6 +26,7 @@ from app.infrastructure.repositories.assistant_profiles_repository import Assist
 from app.applications.services.assistant_profile_service import AssistantProfileService
 from app.infrastructure.repositories.email_thread_repository import EmailThreadRepository
 from app.applications.services.email_thread_service import EmailThreadService
+from app.applications.orchestrators.openai.email_thread_orchestrator import EmailThreadOrchestrator
 
 from app.domain.interfaces.services.auth_service import IAuthenticationService
 
@@ -139,10 +141,29 @@ async def get_email_thread_repository(
     return EmailThreadRepository(db)
 
 async def get_email_thread_service(
-    repository: Annotated[IEmailThreadRepository, Depends(get_email_thread_repository)]
+    repository: Annotated[IEmailThreadRepository, Depends(get_email_thread_repository)],
+    user_service: Annotated[IUserService, Depends(get_user_service)]
 ) -> IEmailThreadService:
     """Get email thread service instance."""
-    return EmailThreadService(repository)
+    return EmailThreadService(repository, user_service)
+
+async def get_email_thread_orchestrator(
+    email_thread_service: Annotated[EmailThreadService, Depends(get_email_thread_service)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> IEmailThreadOrchestrator:
+    """Get email thread orchestrator instance."""
+    orchestrator = EmailThreadOrchestrator(
+        email_thread_service=email_thread_service,
+        user_service=user_service,
+    )
+    
+    # Initialize OpenAI services
+    await orchestrator.initialize(
+        api_key=app_settings.openai_api_key,
+        organization=app_settings.openai_organization
+    )
+    
+    return orchestrator
 
 async def get_current_user_id(
     request: Request,
@@ -188,4 +209,5 @@ AssistantProfilesRepositoryDependency = Annotated[IAssistantProfilesRepository, 
 AssistantProfileServiceDependency = Annotated[IAssistantProfileService, Depends(get_assistant_profile_service)]
 EmailThreadRepositoryDependency = Annotated[IEmailThreadRepository, Depends(get_email_thread_repository)]
 EmailThreadServiceDependency = Annotated[IEmailThreadService, Depends(get_email_thread_service)]
+EmailThreadOrchestratorDependency = Annotated[IEmailThreadOrchestrator, Depends(get_email_thread_orchestrator)]
 CurrentUserDependency = Annotated[UUID, Depends(get_current_user_id)]

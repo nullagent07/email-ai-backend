@@ -6,7 +6,7 @@ from app.domain.interfaces.services.openai.thread_service import IOpenAIThreadSe
 class OpenAIThreadService(IOpenAIThreadService):
     """Service for managing OpenAI threads."""
 
-    def __init__(self, adapter: IOpenAIAdapter):
+    def __init__(self, adapter: IOpenAIAdapter) -> None:
         self._adapter = adapter
     
     async def initialize(
@@ -37,79 +37,55 @@ class OpenAIThreadService(IOpenAIThreadService):
         messages: Optional[List[Dict[str, Any]]] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        Create a new thread.
-        
-        Args:
-            messages: Optional list of messages to start the thread with
-            metadata: Optional metadata to attach to the thread
-            
-        Returns:
-            Dict containing the created thread's information
-        """
-        # This will be implemented when we add thread functionality to the adapter
-        raise NotImplementedError()
-    
+        """Create a new thread."""
+        return await self._adapter.create_thread(
+            messages=messages,
+            metadata=metadata
+        )
+
     async def add_message(
         self,
         thread_id: str,
         content: str,
         role: str = "user",
-        file_ids: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        Add a message to a thread.
-        
-        Args:
-            thread_id: ID of the thread
-            content: Message content
-            role: Role of the message sender (default: "user")
-            file_ids: Optional list of file IDs to attach
-            metadata: Optional metadata for the message
-            
-        Returns:
-            Dict containing the created message's information
-        """
-        # This will be implemented when we add thread functionality to the adapter
-        raise NotImplementedError()
-    
-    async def run_assistant(
+        """Add a message to a thread."""
+        return await self._adapter.add_message_to_thread(
+            thread_id=thread_id,
+            role=role,
+            content=content,
+            metadata=metadata
+        )
+
+    async def run_thread(
         self,
         thread_id: str,
         assistant_id: str,
-        instructions: Optional[str] = None
+        instructions: Optional[str] = None,
+        model: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        Run an assistant on a thread.
-        
-        Args:
-            thread_id: ID of the thread
-            assistant_id: ID of the assistant to run
-            instructions: Optional additional instructions for this run
-            
-        Returns:
-            Dict containing the run information
-        """
-        # This will be implemented when we add thread functionality to the adapter
-        raise NotImplementedError()
-    
+        """Run an assistant on a thread."""
+        return await self._adapter.run_thread(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            instructions=instructions,
+            model=model,
+            tools=tools,
+            metadata=metadata
+        )
+
     async def get_messages(
         self,
         thread_id: str,
         limit: int = 100,
         order: str = "desc"
     ) -> List[Dict[str, Any]]:
-        """
-        Get messages from a thread.
-        
-        Args:
-            thread_id: ID of the thread
-            limit: Maximum number of messages to return
-            order: Sort order ("asc" or "desc")
-            
-        Returns:
-            List of message objects
-        """
-        # This will be implemented when we add thread functionality to the adapter
-        raise NotImplementedError()
+        """Get messages from a thread."""
+        return await self._adapter.get_thread_messages(
+            thread_id=thread_id,
+            limit=limit,
+            order=order
+        )

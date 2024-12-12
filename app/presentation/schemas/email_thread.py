@@ -1,5 +1,11 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
+
+
+class EmailThreadCreate(BaseModel):
+    """Schema for creating an email thread."""
+    recipient_email: EmailStr = Field(..., description="Recipient's email")
+    recipient_name: Optional[str] = Field(None, description="Recipient's name")
 
 
 class EmailThreadResponse(BaseModel):
