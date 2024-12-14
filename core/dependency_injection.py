@@ -42,7 +42,7 @@ google_oauth_client: StarletteOAuth2App = cast(StarletteOAuth2App, oauth.registe
     client_secret=app_settings.google_client_secret,
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={
-        'scope': 'openid email profile',
+        'scope': 'openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify',
         'token_endpoint_auth_method': 'client_secret_post'
     }
 ))
