@@ -26,3 +26,4 @@ class OAuthCredentials(Base):
 
     # Отношения
     user: Mapped[Users] = relationship(back_populates="oauth_credentials")
+    gmail_account: Mapped["GmailAccount"] = relationship(back_populates="oauth_credentials", uselist=False)
