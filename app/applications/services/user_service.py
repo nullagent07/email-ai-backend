@@ -12,7 +12,9 @@ class UserService(IUserService):
     """Сервис для работы с пользователями."""
 
     def __init__(self, db_session: AsyncSession):
-        self._repository : IUserRepository = UserRepository(db_session=db_session)
+        self._repository : IUserRepository = UserRepository(
+            db_session=db_session
+            )
 
     async def create_user(self, user_data: dict) -> Users:
         """Создает нового пользователя."""

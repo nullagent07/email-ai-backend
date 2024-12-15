@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 from typing import Annotated, Optional, cast
 from uuid import UUID
+from datetime import datetime
 
 from fastapi import Depends, Path, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -83,24 +84,28 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         finally:
             await session.close()
 
-async def get_user_repository(db: Annotated[AsyncSession, Depends(get_db)]) -> IUserRepository:
+DatabaseSession = Annotated[AsyncSession, Depends(get_db)]
+
+async def get_user_repository(
+    db: DatabaseSession
+    ) -> IUserRepository:
     """Возвращает экземпляр UserService."""
-    return UserRepository(db_session=db)
+    return UserRepository(db)
 
 async def get_assistant_profiles_repository(
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: DatabaseSession
 ) -> IAssistantProfilesRepository:
     """Возвращает экземпляр AssistantProfilesRepository."""
-    return AssistantProfilesRepository(session=db)
+    return AssistantProfilesRepository(db)
 
 async def get_email_thread_repository(
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: DatabaseSession
 ) -> IEmailThreadRepository:
     """Get email thread repository instance."""
     return EmailThreadRepository(db)
 
 async def get_gmail_account_repository(
-    db: Annotated[AsyncSession, Depends(get_db)]
+    db: DatabaseSession
 ) -> IGmailAccountRepository:
     """Get Gmail account repository instance."""
     return GmailAccountRepository(db)
@@ -120,37 +125,33 @@ def get_auth_service(
     return factory.create_service(provider)
 
 async def get_user_service(
-    repository: UserRepositoryDependency
+    db: DatabaseSession
 ) -> IUserService:
     """Возвращает экземпляр UserService."""
-    return UserService(repository)
+    return UserService(db)
 
-async def get_oauth_service(db: Annotated[AsyncSession, Depends(get_db)]) -> IOAuthService:
+async def get_oauth_service(db: DatabaseSession) -> IOAuthService:
     """Возвращает экземпляр OAuthService."""
-    return OAuthService(db_session=db)
+    return OAuthService(db)
 
 async def get_assistant_profile_service(
-    profiles_repository: Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)]
+    db : DatabaseSession
 ) -> IAssistantProfileService:
     """Возвращает экземпляр AssistantProfileService."""
-    return AssistantProfileService(profiles_repository=profiles_repository)
+    return AssistantProfileService(db)
 
 async def get_email_thread_service(
-    repository: Annotated[IEmailThreadRepository, Depends(get_email_thread_repository)],
     user_service: Annotated[IUserService, Depends(get_user_service)]
 ) -> IEmailThreadService:
     """Get email thread service instance."""
-    return EmailThreadService(repository, user_service)
+    return EmailThreadService(user_service)
 
 async def get_gmail_account_service(
-    repository: Annotated[IGmailAccountRepository, Depends(get_gmail_account_repository)],
-    user_service: Annotated[IUserService, Depends(get_user_service)]
 ) -> IGmailAccountService:
     """Get Gmail account service instance."""
-    return GmailAccountService(repository, user_service)
+    return GmailAccountService(user_service)
 
 # """ ===== Services  ==== """ #
-DatabaseSession = Annotated[AsyncSession, Depends(get_db)]
 AuthServiceDependency = Annotated[IAuthenticationService, Depends(get_auth_service)]
 UserServiceDependency = Annotated[UserService, Depends(get_user_service)]
 OAuthServiceDependency = Annotated[OAuthService, Depends(get_oauth_service)]
@@ -188,6 +189,13 @@ async def get_current_user_id(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token"
+        )
+    
+    current_time = datetime.utcnow()
+    if credentials.expires_at <= current_time:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
         )
     
     return credentials.user_id
@@ -246,7 +254,5 @@ async def get_email_thread_orchestrator(
 CurrentUserDependency = Annotated[UUID, Depends(get_current_user_id)]
 
 AuthOrchestratorDependency = Annotated[AuthOrchestrator, Depends(get_auth_orchestrator)]
-AssistantOrchestratorDependency = Annotated[IAssistantOrchestrator, Depends(get_assistant_orchestrator)]
-EmailThreadOrchestratorDependency = Annotated[IEmailThreadOrchestrator, Depends(get_email_thread_orchestrator)]
 AssistantOrchestratorDependency = Annotated[IAssistantOrchestrator, Depends(get_assistant_orchestrator)]
 EmailThreadOrchestratorDependency = Annotated[IEmailThreadOrchestrator, Depends(get_email_thread_orchestrator)]

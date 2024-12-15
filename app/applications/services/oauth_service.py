@@ -10,7 +10,9 @@ class OAuthService(IOAuthService):
     """Сервис для работы с OAuth учетными данными."""
 
     def __init__(self, db_session: AsyncSession):        
-        self.oauth_repository : IOAuthRepository = OAuthRepository(db_session=db_session)
+        self.oauth_repository : IOAuthRepository = OAuthRepository(
+            db_session=db_session
+            )
 
     async def create_credentials(self, credentials_data: dict) -> OAuthCredentials:
         """Создает новые OAuth учетные данные."""

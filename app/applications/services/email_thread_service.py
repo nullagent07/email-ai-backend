@@ -6,19 +6,18 @@ from app.domain.interfaces.services.email_thread_service import IEmailThreadServ
 from app.domain.interfaces.services.user_service import IUserService
 from app.domain.models.email_threads import EmailThreads
 from app.presentation.schemas.email_thread import EmailThreadCreate
+from app.infrastructure.repositories.email_thread_repository import EmailThreadRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class EmailThreadService(IEmailThreadService):
     """Service for email threads."""
-
-    def __init__(
-        self,
-        repository: IEmailThreadRepository,
-        user_service: IUserService
-    ) -> None:
-        self._repository = repository
-        self._user_service = user_service
-
+    
+    def __init__(self, db_session: AsyncSession, user_service: IUserService):
+        self._repository : IEmailThreadRepository = EmailThreadRepository(
+            db_session=db_session
+            )
+    
     async def get_threads_by_user_and_assistant(
         self, user_id: UUID, assistant_id: str
     ) -> List[EmailThreads]:
@@ -28,18 +27,12 @@ class EmailThreadService(IEmailThreadService):
     async def create_thread(
         self,
         user_id: UUID,
-        user_email: str | None,
+        user_email: str,
         assistant_id: str,
         thread_data: EmailThreadCreate,
         thread_id: str,
     ) -> EmailThreads:
         """Create a new email thread."""
-        if user_email is None:
-            user = await self._user_service.find_user_by_id(user_id)
-            if not user:
-                raise ValueError(f"User with id {user_id} not found")
-            user_email = user.email
-
         return await self._repository.create_thread(
             user_id=user_id,
             user_email=user_email,

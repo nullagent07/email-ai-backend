@@ -56,7 +56,6 @@ async def login(
 @router.get("/{provider}/callback", response_model=None)
 async def callback(
     request: Request,
-    provider: str,
     auth_orchestrator: AuthOrchestratorDependency,
     responses={
         200: {
