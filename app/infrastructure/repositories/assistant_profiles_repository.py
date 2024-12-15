@@ -10,8 +10,8 @@ from app.domain.interfaces.repositories.assistant_profiles_repository import IAs
 class AssistantProfilesRepository(IAssistantProfilesRepository):
     """Implementation of assistant profiles repository."""
     
-    def __init__(self, session: AsyncSession):
-        self._session = session
+    def __init__(self, db_session: AsyncSession):
+        self.db_session = db_session
     
     async def create(
         self,
@@ -29,15 +29,15 @@ class AssistantProfilesRepository(IAssistantProfilesRepository):
             instruction=instruction,
             capabilities=capabilities
         )
-        self._session.add(profile)
-        await self._session.flush()
-        await self._session.commit()
+        self.db_session.add(profile)
+        await self.db_session.flush()
+        await self.db_session.commit()
         return profile
     
     async def get_by_id(self, profile_id: str) -> Optional[AssistantProfiles]:
         """Get assistant profile by ID."""
         query = select(AssistantProfiles).where(AssistantProfiles.id == profile_id)
-        result = await self._session.execute(query)
+        result = await self.db_session.execute(query)
         return result.scalar_one_or_none()
     
     async def get_by_user_id(self, user_id: UUID) -> List[AssistantProfiles]:
@@ -45,7 +45,7 @@ class AssistantProfilesRepository(IAssistantProfilesRepository):
         query = select(AssistantProfiles).where(
             AssistantProfiles.creator_user_id == user_id
         )
-        result = await self._session.execute(query)
+        result = await self.db_session.execute(query)
         return list(result.scalars().all())
     
     async def update(
@@ -57,16 +57,16 @@ class AssistantProfilesRepository(IAssistantProfilesRepository):
         profile = await self.get_by_id(profile_id)
         if profile and instruction is not None:
             profile.instruction = instruction
-            await self._session.flush()
-            await self._session.commit()
+            await self.db_session.flush()
+            await self.db_session.commit()
         return profile
     
     async def delete(self, profile_id: str) -> bool:
         """Delete assistant profile."""
         profile = await self.get_by_id(profile_id)
         if profile:
-            await self._session.delete(profile)
-            await self._session.flush()
-            await self._session.commit()
+            await self.db_session.delete(profile)
+            await self.db_session.flush()
+            await self.db_session.commit()
             return True
         return False

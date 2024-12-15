@@ -141,15 +141,16 @@ async def get_assistant_profile_service(
     return AssistantProfileService(db)
 
 async def get_email_thread_service(
-    user_service: Annotated[IUserService, Depends(get_user_service)]
+    db: DatabaseSession
 ) -> IEmailThreadService:
     """Get email thread service instance."""
-    return EmailThreadService(user_service)
+    return EmailThreadService(db)
 
 async def get_gmail_account_service(
+    db: DatabaseSession
 ) -> IGmailAccountService:
     """Get Gmail account service instance."""
-    return GmailAccountService(user_service)
+    return GmailAccountService(db)
 
 # """ ===== Services  ==== """ #
 AuthServiceDependency = Annotated[IAuthenticationService, Depends(get_auth_service)]
@@ -234,11 +235,13 @@ def get_auth_orchestrator(
 async def get_email_thread_orchestrator(
     email_thread_service: EmailThreadServiceDependency,
     user_service: UserServiceDependency,
+    gmail_account_service: GmailAccountServiceDependency,
 ) -> IEmailThreadOrchestrator:
     """Get email thread orchestrator instance."""
     orchestrator = EmailThreadOrchestrator(
         email_thread_service=email_thread_service,
         user_service=user_service,
+        gmail_account_service=gmail_account_service
     )
     
     # Initialize OpenAI services

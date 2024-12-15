@@ -3,14 +3,14 @@ from uuid import UUID
 
 from app.domain.interfaces.services.assistant_profile_service import IAssistantProfileService
 from app.domain.interfaces.repositories.assistant_profiles_repository import IAssistantProfilesRepository
-from app.infrastructure.repositories.oauth_repository import OAuthRepository
+from app.infrastructure.repositories.assistant_profiles_repository import AssistantProfilesRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
 class AssistantProfileService(IAssistantProfileService):
     """Service for managing assistant profiles in the database."""
 
     def __init__(self, db_session: AsyncSession):        
-        self._profiles_repository : IAssistantProfilesRepository = OAuthRepository(
+        self._profiles_repository : IAssistantProfilesRepository = AssistantProfilesRepository(
             db_session=db_session
             )
     

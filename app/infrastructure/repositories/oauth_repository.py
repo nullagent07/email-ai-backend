@@ -28,10 +28,8 @@ class OAuthRepository(IOAuthRepository):
 
     async def get_credentials_by_access_token(self, access_token: str) -> Optional[OAuthCredentials]:
         """Получает учетные данные по access token."""
-        print(access_token)
         query = select(OAuthCredentials).where(OAuthCredentials.access_token == access_token)
         result = await self.db_session.execute(query)
-        print(result)
         return result.scalar_one_or_none()
 
     async def update_credentials(self, email: str, provider: str, credentials_data: dict) -> Optional[OAuthCredentials]:

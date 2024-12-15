@@ -3,7 +3,6 @@ from uuid import UUID
 
 from app.domain.interfaces.repositories.email_thread_repository import IEmailThreadRepository
 from app.domain.interfaces.services.email_thread_service import IEmailThreadService
-from app.domain.interfaces.services.user_service import IUserService
 from app.domain.models.email_threads import EmailThreads
 from app.presentation.schemas.email_thread import EmailThreadCreate
 from app.infrastructure.repositories.email_thread_repository import EmailThreadRepository
@@ -13,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class EmailThreadService(IEmailThreadService):
     """Service for email threads."""
     
-    def __init__(self, db_session: AsyncSession, user_service: IUserService):
+    def __init__(self, db_session: AsyncSession):
         self._repository : IEmailThreadRepository = EmailThreadRepository(
             db_session=db_session
             )
