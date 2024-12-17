@@ -15,7 +15,7 @@ class IEmailThreadOrchestrator(ABC):
         api_key: str,
         organization: Optional[str] = None,
         api_base: Optional[str] = None,
-        timeout: Optional[float] = None
+        topic_name: Optional[str] = None
     ) -> None:
         """
         Initialize the orchestrator with OpenAI credentials.
@@ -24,7 +24,7 @@ class IEmailThreadOrchestrator(ABC):
             api_key: OpenAI API key
             organization: Optional organization ID
             api_base: Optional API base URL
-            timeout: Optional request timeout
+            topic_name: Optional topic name for Gmail watch
         """
         pass
 
@@ -42,5 +42,28 @@ class IEmailThreadOrchestrator(ABC):
             
         Returns:
             Created email thread
+        """
+        pass
+
+    @abstractmethod
+    async def run_thread_with_gmail_watch(
+        self,
+        user_id: UUID,
+        access_token: str,
+        thread_id: str,
+        assistant_id: str,
+        instructions: Optional[str] = None
+    ) -> None:
+        """
+        Run existing thread with Gmail watch verification.
+        Creates or updates Gmail watch if needed, then runs the thread.
+        
+        Args:
+            user_id: User's UUID
+            access_token: Gmail OAuth access token
+            thread_id: OpenAI thread ID to run
+            assistant_id: ID of the assistant to run
+            topic_name: The Cloud Pub/Sub topic where notifications will be published
+            instructions: Optional instructions for the assistant
         """
         pass

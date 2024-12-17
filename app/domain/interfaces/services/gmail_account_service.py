@@ -13,6 +13,7 @@ class IGmailAccountService(ABC):
     async def create_account(
         self,
         oauth_credentials_id: UUID,
+        user_id: UUID,
         history_id: Optional[str] = None,
         expiration: Optional[datetime] = None,
         topic_name: Optional[str] = None,
@@ -21,6 +22,7 @@ class IGmailAccountService(ABC):
         
         Args:
             oauth_credentials_id: ID OAuth учетных данных
+            user_id: ID пользователя
             history_id: Опциональный ID истории для watch
             expiration: Опциональное время истечения watch
             topic_name: Опциональное имя топика Pub/Sub для watch
@@ -33,6 +35,19 @@ class IGmailAccountService(ABC):
     @abstractmethod
     async def get_account(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
         """Получает аккаунт Gmail по ID OAuth учетных данных."""
+        pass
+
+    @abstractmethod
+    async def get_by_user_id(self, user_id: UUID) -> Optional[GmailAccount]:
+        """
+        Получает аккаунт Gmail по ID пользователя.
+        
+        Args:
+            user_id: ID пользователя
+            
+        Returns:
+            Optional[GmailAccount]: Найденный аккаунт Gmail или None
+        """
         pass
 
     @abstractmethod

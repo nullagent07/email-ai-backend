@@ -35,6 +35,7 @@ from app.applications.services.email_thread_service import EmailThreadService
 from app.applications.orchestrators.openai.email_thread_orchestrator import EmailThreadOrchestrator
 from app.infrastructure.repositories.gmail_account_repository import GmailAccountRepository
 from app.applications.services.gmail_account_service import GmailAccountService
+from app.applications.services.gmail_api.gmail_service import GmailService
 
 from app.domain.interfaces.services.auth_service import IAuthenticationService
 
@@ -152,6 +153,14 @@ async def get_gmail_account_service(
     """Get Gmail account service instance."""
     return GmailAccountService(db)
 
+async def get_gmail_service(
+    access_token: str,
+) -> GmailService:
+    """Get initialized Gmail service instance."""
+    gmail_service = GmailService()
+    await gmail_service.initialize(access_token=access_token)
+    return gmail_service
+
 # """ ===== Services  ==== """ #
 AuthServiceDependency = Annotated[IAuthenticationService, Depends(get_auth_service)]
 UserServiceDependency = Annotated[UserService, Depends(get_user_service)]
@@ -159,6 +168,7 @@ OAuthServiceDependency = Annotated[OAuthService, Depends(get_oauth_service)]
 AssistantProfileServiceDependency = Annotated[IAssistantProfileService, Depends(get_assistant_profile_service)]
 EmailThreadServiceDependency = Annotated[IEmailThreadService, Depends(get_email_thread_service)]
 GmailAccountServiceDependency = Annotated[IGmailAccountService, Depends(get_gmail_account_service)]
+GmailServiceDependency = Annotated[GmailService, Depends(get_gmail_service)]
 # """ ===== Services  ==== """ #
 
 async def get_current_user_id(
@@ -201,6 +211,46 @@ async def get_current_user_id(
     
     return credentials.user_id
 
+async def get_access_token(
+    request: Request,
+    oauth_service: OAuthServiceDependency
+) -> str:
+    """
+    Gets access token from cookies and validates it.
+    
+    Args:
+        request: FastAPI Request object
+        oauth_service: OAuth service for token validation
+        
+    Returns:
+        str: Valid access token
+        
+    Raises:
+        HTTPException: If token is not present or invalid
+    """
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+
+    credentials = await oauth_service.find_by_access_token(access_token)
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+    
+    current_time = datetime.utcnow()
+    if credentials.expires_at <= current_time:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    
+    return access_token
+
 async def get_assistant_orchestrator(
     profiles_repository: Annotated[IAssistantProfilesRepository, Depends(get_assistant_profiles_repository)],
 ) -> IAssistantOrchestrator:
@@ -236,25 +286,31 @@ async def get_email_thread_orchestrator(
     email_thread_service: EmailThreadServiceDependency,
     user_service: UserServiceDependency,
     gmail_account_service: GmailAccountServiceDependency,
+    oauth_service: OAuthServiceDependency,
 ) -> IEmailThreadOrchestrator:
     """Get email thread orchestrator instance."""
+    settings = get_app_settings()
     orchestrator = EmailThreadOrchestrator(
         email_thread_service=email_thread_service,
         user_service=user_service,
-        gmail_account_service=gmail_account_service
+        gmail_account_service=gmail_account_service,
+        oauth_service=oauth_service,
     )
     
     # Initialize OpenAI services
     await orchestrator.initialize(
-        api_key=app_settings.openai_api_key,
-        organization=app_settings.openai_organization
+        api_key=settings.openai_api_key,
+        organization=settings.openai_organization,
+        topic_name=settings.google_pubsub_topic_name
     )
     
     return orchestrator
 
 
+
 # """ ===== Dependency Injection ==== """ #
 CurrentUserDependency = Annotated[UUID, Depends(get_current_user_id)]
+AccessTokenDependency = Annotated[str, Depends(get_access_token)]
 
 AuthOrchestratorDependency = Annotated[AuthOrchestrator, Depends(get_auth_orchestrator)]
 AssistantOrchestratorDependency = Annotated[IAssistantOrchestrator, Depends(get_assistant_orchestrator)]

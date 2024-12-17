@@ -21,6 +21,7 @@ class GmailAccountService(IGmailAccountService):
     async def create_account(
         self,
         oauth_credentials_id: UUID,
+        user_id: UUID,
         history_id: Optional[str] = None,
         expiration: Optional[datetime] = None,
         topic_name: Optional[str] = None,
@@ -35,12 +36,17 @@ class GmailAccountService(IGmailAccountService):
             }
         return await self.gmail_account_repository.create_account(
             oauth_credentials_id=oauth_credentials_id,
+            user_id=user_id,
             watch_data=watch_data,
         )
 
     async def get_account(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
         """Получает аккаунт Gmail по ID OAuth учетных данных."""
         return await self.gmail_account_repository.get_by_oauth_credentials_id(oauth_credentials_id)
+
+    async def get_by_user_id(self, user_id: UUID) -> Optional[GmailAccount]:
+        """Получает аккаунт Gmail по ID пользователя."""
+        return await self.gmail_account_repository.get_by_oauth_credentials_id(user_id)
 
     async def setup_watch(
         self,

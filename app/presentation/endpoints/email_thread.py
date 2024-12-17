@@ -4,7 +4,12 @@ from starlette import status
 
 from app.domain.models.users import Users
 from app.presentation.schemas.email_thread import EmailThreadResponse, EmailThreadCreate
-from core.dependency_injection import EmailThreadServiceDependency, CurrentUserDependency, EmailThreadOrchestratorDependency
+from core.dependency_injection import (
+    EmailThreadServiceDependency, 
+    CurrentUserDependency, 
+    EmailThreadOrchestratorDependency,
+    AccessTokenDependency
+)
 
 router = APIRouter(prefix="/email-threads", tags=["email-threads"])
 
@@ -35,6 +40,8 @@ async def get_threads(
         )
         for thread in threads
     ]
+
+
 @router.post(
     "/{assistant_id}",
     response_model=EmailThreadResponse,
@@ -61,3 +68,24 @@ async def create_thread(
         instructions=thread.instructions,
         status=thread.status,
     )
+
+
+@router.post(
+    "/start/{assistant_id}/{thread_id}",
+    status_code=status.HTTP_200_OK,
+)
+async def start_thread(
+    assistant_id: str,
+    thread_id: str,
+    current_user: CurrentUserDependency,
+    access_token: AccessTokenDependency,
+    email_thread_orchestrator: EmailThreadOrchestratorDependency,
+) -> dict:
+    """Start an existing email thread with Gmail watch."""
+    await email_thread_orchestrator.run_thread_with_gmail_watch(
+        user_id=current_user,
+        access_token=access_token,
+        thread_id=thread_id,
+        assistant_id=assistant_id,
+    )
+    return {"status": "success", "message": "Thread started successfully"}

@@ -3,19 +3,15 @@ from typing import Optional, List
 from app.domain.interfaces.integrations.gmail.adapter import IGmailAdapter
 from app.domain.interfaces.services.gmail_api.gmail_service import IGmailService
 from app.infrastructure.integrations.gmail.dtos.gmail_watch_dto import GmailWatchDTO
+from app.infrastructure.integrations.gmail.adapter import GmailAdapter
 
 
 class GmailService(IGmailService):
     """Service for managing Gmail operations."""
 
-    def __init__(self, adapter: IGmailAdapter) -> None:
-        """
-        Initialize Gmail service with adapter.
-        
-        Args:
-            adapter: Gmail adapter instance
-        """
-        self._adapter = adapter
+    def __init__(self) -> None:
+        """Initialize Gmail service."""
+        self._adapter = None
         
     async def initialize(self, access_token: str) -> None:
         """
@@ -24,7 +20,7 @@ class GmailService(IGmailService):
         Args:
             access_token: The OAuth 2.0 access token for authentication
         """
-        self._adapter = IGmailAdapter(access_token)
+        self._adapter = GmailAdapter(access_token)
         
     async def create_watch(
         self,

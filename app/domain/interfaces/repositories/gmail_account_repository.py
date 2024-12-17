@@ -11,12 +11,13 @@ class IGmailAccountRepository(ABC):
 
     @abstractmethod
     async def create_account(
-        self, oauth_credentials_id: UUID, watch_data: Optional[dict] = None
+        self, oauth_credentials_id: UUID, user_id: UUID, watch_data: Optional[dict] = None
     ) -> GmailAccount:
         """Создает новый аккаунт Gmail в базе данных.
 
         Args:
             oauth_credentials_id: ID OAuth учетных данных
+            user_id: ID пользователя
             watch_data: Опциональные данные о watch (history_id, expiration, topic_name)
 
         Returns:

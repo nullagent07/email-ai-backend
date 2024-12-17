@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.domain.models.assistant_profiles import AssistantProfiles
     from app.domain.models.email_threads import EmailThreads
     from app.domain.models.oauth import OAuthCredentials
+    from app.domain.models.gmail_account import GmailAccount
 
 
 class Users(Base):
@@ -23,3 +24,4 @@ class Users(Base):
     assistants: Mapped[List["AssistantProfiles"]] = relationship(back_populates="creator")
     threads: Mapped[List["EmailThreads"]] = relationship(back_populates="user")
     oauth_credentials: Mapped[List["OAuthCredentials"]] = relationship(back_populates="user")
+    gmail_accounts: Mapped[List["GmailAccount"]] = relationship(back_populates="user")

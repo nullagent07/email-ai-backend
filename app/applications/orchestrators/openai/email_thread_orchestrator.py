@@ -2,16 +2,18 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime, timedelta
 
-from app.domain.interfaces.orchestrators.email_thread_orchestrator import IEmailThreadOrchestrator
+from app.applications.factories.openai_factory import OpenAIFactory
+from app.applications.services.gmail_api.gmail_service import GmailService
+from app.applications.services.oauth_service import OAuthService
+from app.applications.services.gmail_account_service import GmailAccountService
 from app.domain.interfaces.services.email_thread_service import IEmailThreadService
 from app.domain.interfaces.services.user_service import IUserService
 from app.domain.interfaces.services.gmail_account_service import IGmailAccountService
-from app.domain.interfaces.integrations.gmail.adapter import IGmailAdapter
+from app.domain.interfaces.services.oauth_service import IOAuthService
 from app.domain.interfaces.services.openai.thread_service import IOpenAIThreadService
+from app.domain.interfaces.orchestrators.email_thread_orchestrator import IEmailThreadOrchestrator
 from app.domain.models.email_threads import EmailThreads
 from app.presentation.schemas.email_thread import EmailThreadCreate
-from app.applications.factories.openai_factory import OpenAIFactory
-from app.applications.services.gmail_api.gmail_service import GmailService
 
 
 class EmailThreadOrchestrator(IEmailThreadOrchestrator):
@@ -22,26 +24,37 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
         email_thread_service: IEmailThreadService,
         user_service: IUserService,
         gmail_account_service: IGmailAccountService,
+        oauth_service: IOAuthService,
     ) -> None:
         self._email_thread_service = email_thread_service
         self._user_service = user_service
         self._gmail_account_service = gmail_account_service
+        self._oauth_service = oauth_service
         self._openai_thread_service: Optional[IOpenAIThreadService] = None
+        self._topic_name: Optional[str] = None
 
     async def initialize(
         self,
         api_key: str,
         organization: Optional[str] = None,
         api_base: Optional[str] = None,
-        timeout: Optional[float] = None
+        topic_name: Optional[str] = None
     ) -> None:
-        """Initialize OpenAI services."""
+        """
+        Initialize the orchestrator with OpenAI credentials.
+        
+        Args:
+            api_key: OpenAI API key
+            organization: Optional organization ID
+            api_base: Optional API base URL
+            topic_name: Optional topic name for Gmail watch
+        """
         _, self._openai_thread_service = await OpenAIFactory.create_services(
             api_key=api_key,
             organization=organization,
-            api_base=api_base,
-            timeout=timeout
+            api_base=api_base
         )
+        self._topic_name = topic_name
 
     async def create_thread_with_openai(
         self, user_id: UUID, assistant_id: str, thread_data: EmailThreadCreate
@@ -80,7 +93,6 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
         access_token : str,
         thread_id: str,
         assistant_id: str,
-        topic_name: str,
         instructions: Optional[str] = None
     ) -> None:
         """
@@ -107,34 +119,37 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
         # If no Gmail account exists, create one with watch
         if not gmail_account:
             # Create watch using Gmail service
-            watch_response = await gmail_service.create_watch(topic_name=topic_name)
+            watch_response = await gmail_service.create_watch(topic_name=self._topic_name)
             
+            user_credentials = await self._oauth_service.find_by_access_token(access_token)
+
             # Create Gmail account with watch data
             await self._gmail_account_service.create_account(
-                oauth_credentials_id=user_id,
+                oauth_credentials_id=user_credentials.id,
+                user_id=user_id,
                 history_id=watch_response.history_id,
                 expiration=datetime.fromtimestamp(int(watch_response.expiration) / 1000),  # Convert milliseconds to datetime
-                topic_name=topic_name
+                topic_name=self._topic_name
             )
-        else:
-            # Check if watch token needs refresh (10 minutes threshold)
-            if gmail_account.watch_expiry:
-                current_time = datetime.utcnow()
-                expiry_time = gmail_account.watch_expiry
-                time_until_expiry = expiry_time - current_time
+        # else:
+        #     # Check if watch token needs refresh (10 minutes threshold)
+        #     if gmail_account.watch_expiry:
+        #         current_time = datetime.utcnow()
+        #         expiry_time = gmail_account.watch_expiry
+        #         time_until_expiry = expiry_time - current_time
 
-                # If less than 10 minutes until expiry, refresh the watch
-                if time_until_expiry <= timedelta(minutes=10):
-                    # Create new watch using Gmail service
-                    watch_response = await gmail_service.create_watch(topic_name=topic_name)
+        #         # If less than 10 minutes until expiry, refresh the watch
+        #         if time_until_expiry <= timedelta(minutes=10):
+        #             # Create new watch using Gmail service
+        #             watch_response = await gmail_service.create_watch(topic_name=self._topic_name)
                     
-                    # Update account with new watch data
-                    await self._gmail_account_service.setup_watch(
-                        account_id=gmail_account.id,
-                        history_id=watch_response.history_id,
-                        expiration=datetime.fromtimestamp(int(watch_response.expiration) / 1000),
-                        topic_name=topic_name
-                    )
+        #             # Update account with new watch data
+        #             await self._gmail_account_service.setup_watch(
+        #                 account_id=gmail_account.id,
+        #                 history_id=watch_response.history_id,
+        #                 expiration=datetime.fromtimestamp(int(watch_response.expiration) / 1000),
+        #                 topic_name=self._topic_name
+        #             )
         
         # Run the thread
         await self._openai_thread_service.run_thread(
