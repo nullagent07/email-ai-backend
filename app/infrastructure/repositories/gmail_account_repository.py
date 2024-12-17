@@ -37,11 +37,16 @@ class GmailAccountRepository(IGmailAccountRepository):
         await self.db_session.commit()
         return new_account
 
-    async def get_by_oauth_credentials_id(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
-        """Получает аккаунт Gmail по ID OAuth учетных данных."""
-        result = await self.db_session.execute(
-            select(GmailAccount).where(GmailAccount.oauth_credentials_id == oauth_credentials_id)
-        )
+    async def get_by_user_id(self, user_id: UUID) -> Optional[GmailAccount]:
+        """Get Gmail account by user ID."""
+        query = select(GmailAccount).where(GmailAccount.user_id == user_id)
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_by_oauth_credentials(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
+        """Get Gmail account by OAuth credentials ID."""
+        query = select(GmailAccount).where(GmailAccount.oauth_credentials_id == oauth_credentials_id)
+        result = await self.db_session.execute(query)
         return result.scalar_one_or_none()
 
     async def update_watch_data(

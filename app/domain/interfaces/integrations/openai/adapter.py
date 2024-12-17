@@ -123,10 +123,36 @@ class IOpenAIAdapter(ABC):
     async def get_thread_messages(
         self,
         thread_id: str,
-        limit: Optional[int] = None,
-        order: Optional[str] = None,
-        after: Optional[str] = None,
-        before: Optional[str] = None
+        limit: int = 100,
+        order: str = "desc"
     ) -> List[Dict[str, Any]]:
-        """Get messages from a thread."""
+        """
+        Get messages from a thread.
+        
+        Args:
+            thread_id: ID of the thread
+            limit: Maximum number of messages to return
+            order: Sort order ("asc" or "desc")
+            
+        Returns:
+            List of message objects
+        """
+        pass
+
+    @abstractmethod
+    async def get_thread_run(
+        self,
+        thread_id: str,
+        run_id: str
+    ) -> Dict[str, Any]:
+        """
+        Get information about a specific run in a thread.
+        
+        Args:
+            thread_id: ID of the thread
+            run_id: ID of the run
+            
+        Returns:
+            Dict containing the run information
+        """
         pass

@@ -1,6 +1,8 @@
 from typing import Optional, List, Dict, Any
 from app.domain.interfaces.integrations.openai.adapter import IOpenAIAdapter
 from app.domain.interfaces.services.openai.thread_service import IOpenAIThreadService
+import time
+import asyncio
 
 
 class OpenAIThreadService(IOpenAIThreadService):
@@ -84,8 +86,32 @@ class OpenAIThreadService(IOpenAIThreadService):
         order: str = "desc"
     ) -> List[Dict[str, Any]]:
         """Get messages from a thread."""
-        return await self._adapter.get_thread_messages(
+        messages = await self._adapter.get_thread_messages(
             thread_id=thread_id,
             limit=limit,
             order=order
         )
+        return messages
+
+    async def wait_for_run_completion(
+        self,
+        thread_id: str,
+        run_id: str,
+        check_interval: float = 1.0,
+        timeout: float = 300.0
+    ) -> Dict[str, Any]:
+        """Wait for a thread run to complete."""
+        start_time = time.time()
+        while True:
+            run = await self._adapter.get_thread_run(
+                thread_id=thread_id,
+                run_id=run_id
+            )
+            
+            if run["status"] in ["completed", "failed", "cancelled", "expired"]:
+                return run
+                
+            if time.time() - start_time > timeout:
+                raise TimeoutError(f"Run {run_id} did not complete within {timeout} seconds")
+                
+            await asyncio.sleep(check_interval)

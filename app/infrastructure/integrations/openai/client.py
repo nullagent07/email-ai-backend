@@ -4,10 +4,7 @@ from openai.types.beta import Thread as OpenAIThreadType
 from openai.types.beta import Assistant as OpenAIAssistantType
 from openai.types.beta.threads import Run as OpenAIRunType
 from openai.types.beta.threads import Message as OpenAIMessageType
-from openai.types.beta.threads.message_content import MessageContent
-from openai.types.beta.assistant_tool import AssistantTool
-from openai.types.beta.thread_create_params import Message as ThreadMessage
-from openai.types.beta.assistant_tool_param import AssistantToolParam
+from openai.types.beta.threads import MessageContent
 from openai.pagination import SyncCursorPage, AsyncCursorPage
 
 from app.domain.interfaces.integrations.openai.client import IOpenAIClient
@@ -17,7 +14,7 @@ class OpenAIClient(IOpenAIClient):
     """Implementation of OpenAI API client."""
     
     def __init__(self) -> None:
-        self._client = None
+        self._client: Optional[openai.AsyncOpenAI] = None
 
     async def initialize(
         self,
@@ -41,20 +38,21 @@ class OpenAIClient(IOpenAIClient):
         model: str,
         tools: Optional[List[Dict[str, Any]]] = None,
         file_ids: Optional[List[str]] = None,
-        description: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> OpenAIAssistantType:
         """Create a new assistant."""
         if not self._client:
             raise RuntimeError("Client not initialized")
             
-        response: OpenAIAssistantType = await self._client.beta.assistants.create(
+        response: OpenAIAssistantType = await self._client.assistants.create(
             name=name,
             instructions=instructions,
             model=model,
-            tools=cast(List[AssistantToolParam], tools) if tools else [],
-            description=description
+            tools=tools if tools else [],
+            file_ids=file_ids if file_ids else [],
+            metadata=metadata if metadata else {},
         )
-        return response.model_dump()
+        return response
 
     async def update_assistant(
         self,
@@ -64,13 +62,14 @@ class OpenAIClient(IOpenAIClient):
         model: Optional[str] = None,
         tools: Optional[List[Dict[str, Any]]] = None,
         file_ids: Optional[List[str]] = None,
-        description: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> OpenAIAssistantType:
         """Update an existing assistant."""
         if not self._client:
             raise RuntimeError("Client not initialized")
             
-        update_params = {}
+        update_params: Dict[str, Any] = {}
+
         if name is not None:
             update_params["name"] = name
         if instructions is not None:
@@ -78,15 +77,17 @@ class OpenAIClient(IOpenAIClient):
         if model is not None:
             update_params["model"] = model
         if tools is not None:
-            update_params["tools"] = cast(List[AssistantToolParam], tools)
-        if description is not None:
-            update_params["description"] = description
-            
-        response: OpenAIAssistantType = await self._client.beta.assistants.update(
+            update_params["tools"] = tools
+        if file_ids is not None:
+            update_params["file_ids"] = file_ids
+        if metadata is not None:
+            update_params["metadata"] = metadata
+
+        response: OpenAIAssistantType = await self._client.assistants.update(
             assistant_id=assistant_id,
-            **update_params
+            **update_params,
         )
-        return response.model_dump()
+        return response
 
     async def delete_assistant(self, assistant_id: str) -> bool:
         """Delete an assistant."""
@@ -94,7 +95,7 @@ class OpenAIClient(IOpenAIClient):
             raise RuntimeError("Client not initialized")
             
         try:
-            await self._client.beta.assistants.delete(assistant_id=assistant_id)
+            await self._client.assistants.delete(assistant_id=assistant_id)
             return True
         except Exception:
             return False
@@ -102,36 +103,67 @@ class OpenAIClient(IOpenAIClient):
     async def create_thread(
         self,
         messages: Optional[List[Dict[str, Any]]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Create a new thread."""
         if not self._client:
             raise RuntimeError("Client not initialized")
-            
-        response: OpenAIThreadType = await self._client.beta.threads.create(
-            messages=cast(List[ThreadMessage], messages) if messages else [],
+
+        response = await self._client.beta.threads.create(
+            messages=messages,
             metadata=metadata
         )
         return response.model_dump()
 
-    async def add_message_to_thread(
+    async def create_thread_and_run(
         self,
-        thread_id: str,
-        role: str,
-        content: str,
-        metadata: Optional[Dict[str, Any]] = None
+        assistant_id: str,
+        thread: Dict[str, Any],
+        instructions: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Add a message to an existing thread."""
+        """Create a thread and run it with an assistant."""
         if not self._client:
             raise RuntimeError("Client not initialized")
-            
-        response: OpenAIMessageType = await self._client.beta.threads.messages.create(
-            thread_id=thread_id,
-            role=cast(Literal["user", "assistant"], role),
-            content=content,
+
+        response = await self._client.beta.threads.create_and_run(
+            assistant_id=assistant_id,
+            thread=thread,
+            instructions=instructions,
+            tools=tools,
             metadata=metadata
         )
-        return response.model_dump()
+        return {
+            "id": response.id,
+            "thread_id": response.thread_id,
+            "assistant_id": response.assistant_id,
+            "status": response.status,
+            "created_at": response.created_at,
+            "metadata": response.metadata
+        }
+
+    async def get_thread_run(
+        self,
+        thread_id: str,
+        run_id: str,
+    ) -> Dict[str, Any]:
+        """Get a thread run."""
+        if not self._client:
+            raise RuntimeError("Client not initialized")
+
+        response = await self._client.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=run_id
+        )
+        return {
+            "id": response.id,
+            "thread_id": response.thread_id,
+            "assistant_id": response.assistant_id,
+            "status": response.status,
+            "created_at": response.created_at,
+            "metadata": response.metadata
+        }
 
     async def run_thread(
         self,
@@ -142,42 +174,62 @@ class OpenAIClient(IOpenAIClient):
         tools: Optional[List[Dict[str, Any]]] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Run an assistant on a thread."""
+        """Run a thread with an assistant."""
         if not self._client:
             raise RuntimeError("Client not initialized")
-            
-        response: OpenAIRunType = await self._client.beta.threads.runs.create(
+
+        response = await self._client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
             instructions=instructions,
+            tools=tools,
             metadata=metadata
         )
-        return response.model_dump()
+        return {
+            "id": response.id,
+            "thread_id": response.thread_id,
+            "assistant_id": response.assistant_id,
+            "status": response.status,
+            "created_at": response.created_at,
+            "metadata": response.metadata
+        }
 
     async def get_thread_messages(
         self,
         thread_id: str,
-        limit: Optional[int] = None,
-        order: Optional[str] = None,
+        limit: int = 100,
+        order: str = "desc",
         after: Optional[str] = None,
-        before: Optional[str] = None
+        before: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get messages from a thread."""
         if not self._client:
             raise RuntimeError("Client not initialized")
-            
-        params = {}
-        if limit is not None:
-            params["limit"] = limit
-        if order is not None:
-            params["order"] = order
-        if after is not None:
-            params["after"] = after
-        if before is not None:
-            params["before"] = before
-            
-        response: AsyncCursorPage[OpenAIMessageType] = await self._client.beta.threads.messages.list(
+
+        response = await self._client.beta.threads.messages.list(
             thread_id=thread_id,
-            **params
+            limit=limit,
+            order=order,
+            after=after,
+            before=before
         )
         return [message.model_dump() for message in response.data]
+
+    async def add_message_to_thread(
+        self,
+        thread_id: str,
+        content: str,
+        role: str = "user",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Add a message to a thread."""
+        if not self._client:
+            raise RuntimeError("Client not initialized")
+
+        response = await self._client.beta.threads.messages.create(
+            thread_id=thread_id,
+            content=content,
+            role=role,
+            metadata=metadata
+        )
+        return response.model_dump()

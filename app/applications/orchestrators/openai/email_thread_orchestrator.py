@@ -94,7 +94,7 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
         thread_id: str,
         assistant_id: str,
         instructions: Optional[str] = None
-    ) -> None:
+    ) -> Optional[str]:
         """
         Run existing thread with Gmail watch verification.
         Creates or updates Gmail watch if needed, then runs the thread.
@@ -113,47 +113,66 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
         gmail_service = GmailService()
         await gmail_service.initialize(access_token=access_token)
 
+        # Get user credentials first
+        user_credentials = await self._oauth_service.find_by_access_token(access_token)
+        if not user_credentials:
+            raise RuntimeError("OAuth credentials not found")
+
         # Get Gmail account for the user
         gmail_account = await self._gmail_account_service.get_by_user_id(user_id)
         
-        # If no Gmail account exists, create one with watch
-        if not gmail_account:
+        # If no Gmail account exists or it's expired, create/update watch
+        if not gmail_account or (
+            gmail_account.watch_expiration and 
+            gmail_account.watch_expiration <= datetime.now()
+        ):
             # Create watch using Gmail service
             watch_response = await gmail_service.create_watch(topic_name=self._topic_name)
             
-            user_credentials = await self._oauth_service.find_by_access_token(access_token)
+            if not gmail_account:
+                # Create new Gmail account with watch data
+                await self._gmail_account_service.create_account(
+                    oauth_credentials_id=user_credentials.id,
+                    user_id=user_id,
+                    history_id=watch_response.history_id,
+                    expiration=datetime.fromtimestamp(int(watch_response.expiration) / 1000),  # Convert milliseconds to datetime
+                    topic_name=self._topic_name
+                )
+            else:
+                # Update existing account with new watch data
+                await self._gmail_account_service.setup_watch(
+                    account_id=gmail_account.id,
+                    history_id=watch_response.history_id,
+                    expiration=datetime.fromtimestamp(int(watch_response.expiration) / 1000),
+                    topic_name=self._topic_name
+                )                
 
-            # Create Gmail account with watch data
-            await self._gmail_account_service.create_account(
-                oauth_credentials_id=user_credentials.id,
-                user_id=user_id,
-                history_id=watch_response.history_id,
-                expiration=datetime.fromtimestamp(int(watch_response.expiration) / 1000),  # Convert milliseconds to datetime
-                topic_name=self._topic_name
-            )
-        # else:
-        #     # Check if watch token needs refresh (10 minutes threshold)
-        #     if gmail_account.watch_expiry:
-        #         current_time = datetime.utcnow()
-        #         expiry_time = gmail_account.watch_expiry
-        #         time_until_expiry = expiry_time - current_time
-
-        #         # If less than 10 minutes until expiry, refresh the watch
-        #         if time_until_expiry <= timedelta(minutes=10):
-        #             # Create new watch using Gmail service
-        #             watch_response = await gmail_service.create_watch(topic_name=self._topic_name)
-                    
-        #             # Update account with new watch data
-        #             await self._gmail_account_service.setup_watch(
-        #                 account_id=gmail_account.id,
-        #                 history_id=watch_response.history_id,
-        #                 expiration=datetime.fromtimestamp(int(watch_response.expiration) / 1000),
-        #                 topic_name=self._topic_name
-        #             )
-        
         # Run the thread
-        await self._openai_thread_service.run_thread(
+        run_result = await self._openai_thread_service.run_thread(
             thread_id=thread_id,
             assistant_id=assistant_id,
             instructions=instructions
         )
+        
+        # Wait for the run to complete
+        await self._openai_thread_service.wait_for_run_completion(thread_id, run_result["id"])
+        
+        # Get messages after run completion
+        messages = await self._openai_thread_service.get_messages(thread_id)
+        if not messages:
+            return None
+            
+        # Get the last message which is the assistant's response
+        assistant_message = messages[0]  # Messages are returned in reverse chronological order
+
+        # Extract text content from the message
+        if not assistant_message.get("content"):
+            return None
+            
+        message_content = assistant_message["content"][0]
+        if message_content["type"] != "text":
+            return None
+
+        print(message_content["text"]["value"])
+            
+        return message_content["text"]["value"]

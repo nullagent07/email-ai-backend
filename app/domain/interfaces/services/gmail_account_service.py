@@ -51,6 +51,19 @@ class IGmailAccountService(ABC):
         pass
 
     @abstractmethod
+    async def get_by_oauth_credentials(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
+        """
+        Получает аккаунт Gmail по ID OAuth учетных данных.
+        
+        Args:
+            oauth_credentials_id: ID OAuth учетных данных
+            
+        Returns:
+            Optional[GmailAccount]: Найденный аккаунт Gmail или None
+        """
+        pass
+
+    @abstractmethod
     async def setup_watch(
         self,
         account_id: UUID,

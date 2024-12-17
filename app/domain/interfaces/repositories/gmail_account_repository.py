@@ -26,8 +26,13 @@ class IGmailAccountRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_by_oauth_credentials_id(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
-        """Получает аккаунт Gmail по ID OAuth учетных данных."""
+    async def get_by_user_id(self, user_id: UUID) -> Optional[GmailAccount]:
+        """Get Gmail account by user ID."""
+        pass
+
+    @abstractmethod
+    async def get_by_oauth_credentials(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
+        """Get Gmail account by OAuth credentials ID."""
         pass
 
     @abstractmethod

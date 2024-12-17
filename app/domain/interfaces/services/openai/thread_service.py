@@ -109,3 +109,28 @@ class IOpenAIThreadService(ABC):
             List of message objects
         """
         pass
+
+    @abstractmethod
+    async def wait_for_run_completion(
+        self,
+        thread_id: str,
+        run_id: str,
+        check_interval: float = 1.0,
+        timeout: float = 300.0
+    ) -> Dict[str, Any]:
+        """
+        Wait for a thread run to complete.
+        
+        Args:
+            thread_id: ID of the thread
+            run_id: ID of the run to wait for
+            check_interval: How often to check run status in seconds
+            timeout: Maximum time to wait in seconds
+            
+        Returns:
+            Dict containing the completed run information
+            
+        Raises:
+            TimeoutError: If the run does not complete within the timeout period
+        """
+        pass

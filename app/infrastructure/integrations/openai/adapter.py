@@ -1,7 +1,4 @@
-from typing import Optional, List, Dict, Any, cast, Literal
-import openai
-from openai.types.beta.assistant_tool_param import AssistantToolParam
-from openai.types.beta.thread_create_params import Message as ThreadMessage
+from typing import Dict, Any, List, Optional
 
 from app.domain.interfaces.integrations.openai.adapter import IOpenAIAdapter
 from app.infrastructure.integrations.openai.client import OpenAIClient
@@ -200,17 +197,27 @@ class OpenAIAdapter(IOpenAIAdapter):
     async def get_thread_messages(
         self,
         thread_id: str,
-        limit: Optional[int] = None,
-        order: Optional[str] = None,
-        after: Optional[str] = None,
-        before: Optional[str] = None
+        limit: int = 100,
+        order: str = "desc"
     ) -> List[Dict[str, Any]]:
         """Get messages from a thread."""
         client = self.get_client()
         return await client.get_thread_messages(
             thread_id=thread_id,
             limit=limit,
-            order=order,
-            after=after,
-            before=before
+            order=order
+        )
+
+    async def get_thread_run(
+        self,
+        thread_id: str,
+        run_id: str
+    ) -> Dict[str, Any]:
+        """Get a thread run."""
+        if not self._client:
+            raise RuntimeError("Client not initialized")
+
+        return await self._client.get_thread_run(
+            thread_id=thread_id,
+            run_id=run_id
         )
