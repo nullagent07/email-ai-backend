@@ -87,14 +87,14 @@ class OpenAIAdapter(IOpenAIAdapter):
         
         # Convert response to expected format
         return {
-            "id": response["id"],
-            "name": response["name"],
-            "instructions": response["instructions"],
-            "capabilities": self._tools_to_capabilities(response["tools"]),
-            "model": response["model"],
-            "description": response.get("description"),
-            "created_at": response["created_at"],
-            "modified_at": response.get("modified_at")
+            "id": response.id,
+            "name": response.name,
+            "instructions": response.instructions,
+            "capabilities": self._tools_to_capabilities(response.tools),
+            "model": response.model,
+            "description": getattr(response, "description", None),
+            "created_at": response.created_at,
+            "modified_at": getattr(response, "modified_at", None)
         }
 
     async def update_assistant_capabilities(
@@ -131,14 +131,14 @@ class OpenAIAdapter(IOpenAIAdapter):
         
         # Convert response to expected format
         return {
-            "id": response["id"],
-            "name": response["name"],
-            "instructions": response["instructions"],
-            "capabilities": self._tools_to_capabilities(response["tools"]),
-            "model": response["model"],
-            "description": response.get("description"),
-            "created_at": response.get("created_at"),
-            "modified_at": response.get("modified_at")
+            "id": response.id,
+            "name": response.name,
+            "instructions": response.instructions,
+            "capabilities": self._tools_to_capabilities(response.tools),
+            "model": response.model,
+            "description": getattr(response, "description", None),
+            "created_at": response.created_at,
+            "modified_at": getattr(response, "modified_at", None)
         }
 
     async def remove_assistant(self, assistant_id: str) -> bool:
@@ -174,6 +174,22 @@ class OpenAIAdapter(IOpenAIAdapter):
             metadata=metadata
         )
 
+    async def list_runs(
+        self,
+        thread_id: str,
+        limit: int = 100,
+        order: str = "desc"
+    ) -> List[Dict[str, Any]]:
+        """List runs for a thread."""
+        client = self.get_client()
+        response = await client.list_runs(thread_id=thread_id, limit=limit, order=order)
+        return response
+
+    async def cancel_run(self, thread_id: str, run_id: str) -> None:
+        """Cancel a run."""
+        client = self.get_client()
+        await client.cancel_run(thread_id=thread_id, run_id=run_id)
+
     async def run_thread(
         self,
         thread_id: str,
@@ -185,7 +201,7 @@ class OpenAIAdapter(IOpenAIAdapter):
     ) -> Dict[str, Any]:
         """Run an assistant on a thread."""
         client = self.get_client()
-        return await client.run_thread(
+        response = await client.run_thread(
             thread_id=thread_id,
             assistant_id=assistant_id,
             instructions=instructions,
@@ -193,6 +209,14 @@ class OpenAIAdapter(IOpenAIAdapter):
             tools=tools,
             metadata=metadata
         )
+        return {
+            "id": response.id,
+            "thread_id": response.thread_id,
+            "assistant_id": response.assistant_id,
+            "status": response.status,
+            "created_at": response.created_at,
+            "metadata": getattr(response, "metadata", None)
+        }
 
     async def get_thread_messages(
         self,
