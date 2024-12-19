@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from app.domain.models.email_threads import EmailThreads
@@ -26,4 +26,35 @@ class IEmailThreadService(ABC):
         thread_id: str,  
     ) -> EmailThreads:
         """Create a new email thread."""
+        pass
+
+    @abstractmethod
+    async def get_active_thread_by_email_and_user(
+        self, 
+        recipient_email: str,
+        user_id: UUID
+    ) -> Optional[EmailThreads]:
+        """
+        Get active thread by recipient email and user ID.
+        
+        Args:
+            recipient_email: Email to search for
+            user_id: ID of the user who owns the thread
+            
+        Returns:
+            Active thread if found, None otherwise
+        """
+        pass
+
+    @abstractmethod
+    async def get_active_thread_by_email(self, recipient_email: str) -> Optional[EmailThreads]:
+        """
+        Get active thread by recipient email.
+        
+        Args:
+            recipient_email: Email to search for
+            
+        Returns:
+            Active thread if found, None otherwise
+        """
         pass

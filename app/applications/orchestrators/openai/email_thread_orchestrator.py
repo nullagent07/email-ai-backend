@@ -265,23 +265,17 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
                                     sender_email = sender_email.split('<')[1].split('>')[0]
                                 print(f"Found message from: {sender_email}")
                                 
-                                # Get active threads for the user where this email is a recipient
-                                active_threads = await self._email_thread_service.get_threads_by_user_and_assistant(
-                                    user_id=user.id,
-                                    assistant_id=None  # We'll get all threads for now and filter by status
+                                # Find active thread by recipient email and user ID
+                                active_thread = await self._email_thread_service.get_active_thread_by_email_and_user(
+                                    recipient_email=sender_email,
+                                    user_id=user.id
                                 )
                                 
-                                # Find matching active threads
-                                matching_threads = [
-                                    thread for thread in active_threads 
-                                    if thread.status == 'active' and thread.recipient_email == sender_email
-                                ]
-                                
-                                if matching_threads:
-                                    print(f"Found {len(matching_threads)} matching active threads")
-                                    # TODO: Process matching threads
+                                if active_thread:
+                                    print(f"Found active thread with ID: {active_thread.id}")
+                                    # TODO: Process the thread - update messages, notify assistant, etc.
                                 else:
-                                    print(f"No active threads found for sender: {sender_email}")
+                                    print(f"No active thread found for email: {sender_email}")
                         break  # We found our history item, no need to continue
 
             # Update the history ID in database
