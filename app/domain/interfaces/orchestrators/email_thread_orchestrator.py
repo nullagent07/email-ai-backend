@@ -67,3 +67,13 @@ class IEmailThreadOrchestrator(ABC):
             instructions: Optional instructions for the assistant
         """
         pass
+
+    @abstractmethod
+    async def handle_gmail_notification(self, notification_data: dict) -> None:
+        """
+        Handle Gmail push notification.
+        
+        Args:
+            notification_data: The notification data from Gmail
+        """
+        pass
