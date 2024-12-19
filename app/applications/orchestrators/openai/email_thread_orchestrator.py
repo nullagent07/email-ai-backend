@@ -242,45 +242,50 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
 
             # Get changes since last history ID
             history_changes = await gmail_service.get_history_changes(stored_history_id)
-            print(f"History changes: {history_changes}")
-            
-            # Update the history ID in database
-            await self._gmail_account_service.update_history_id(gmail_account.id, str(history_id))
+            # print(f"History changes: {history_changes}")
             
             # Process history changes
             if 'history' in history_changes:
-                print(history_changes)
                 for history_item in history_changes['history']:
-                    if 'messagesAdded' in history_item:
-                        for message_added in history_item['messagesAdded']:
-                            message = message_added.get('message', {})
-                            
-                            # Extract sender email from message headers
-                            headers = message.get('payload', {}).get('headers', [])
-                            from_header = next((h for h in headers if h['name'].lower() == 'from'), None)
-                            if not from_header:
-                                continue
+                    # Check if this history item matches the notification history_id
+                    if str(history_item['id']) == str(history_id):
+                        if 'messagesAdded' in history_item:
+                            for message_added in history_item['messagesAdded']:
+                                message = message_added.get('message', {})
                                 
-                            sender_email = from_header['value']
-                            print(f"Found message from: {sender_email}")
-                            
-                            # Get active threads for the user where this email is a recipient
-                            active_threads = await self._email_thread_service.get_threads_by_user_and_assistant(
-                                user_id=user.id,
-                                assistant_id=None  # We'll get all threads for now and filter by status
-                            )
-                            
-                            # Find matching active threads
-                            matching_threads = [
-                                thread for thread in active_threads 
-                                if thread.status == 'active' and thread.recipient_email == sender_email
-                            ]
-                            
-                            if matching_threads:
-                                print(f"Found {len(matching_threads)} matching active threads")
-                                # TODO: Process matching threads
-                            else:
-                                print(f"No active threads found for sender: {sender_email}")
+                                # Extract sender email from message headers
+                                headers = message.get('payload', {}).get('headers', [])
+                                from_header = next((h for h in headers if h['name'].lower() == 'from'), None)
+                                if not from_header:
+                                    continue
+                                    
+                                # Parse sender email from the From header
+                                sender_email = from_header['value']
+                                if '<' in sender_email and '>' in sender_email:
+                                    sender_email = sender_email.split('<')[1].split('>')[0]
+                                print(f"Found message from: {sender_email}")
+                                
+                                # Get active threads for the user where this email is a recipient
+                                active_threads = await self._email_thread_service.get_threads_by_user_and_assistant(
+                                    user_id=user.id,
+                                    assistant_id=None  # We'll get all threads for now and filter by status
+                                )
+                                
+                                # Find matching active threads
+                                matching_threads = [
+                                    thread for thread in active_threads 
+                                    if thread.status == 'active' and thread.recipient_email == sender_email
+                                ]
+                                
+                                if matching_threads:
+                                    print(f"Found {len(matching_threads)} matching active threads")
+                                    # TODO: Process matching threads
+                                else:
+                                    print(f"No active threads found for sender: {sender_email}")
+                        break  # We found our history item, no need to continue
+
+            # Update the history ID in database
+            await self._gmail_account_service.update_history_id(gmail_account.id, str(history_id))
             
         except Exception as e:
             # Log the error and re-raise it

@@ -69,6 +69,38 @@ class GmailClient(IGmailClient):
         response = self._service.users().watch(userId='me', body=request_body).execute()
         return response
 
+    async def get_message(self, message_id: str) -> dict:
+        """
+        Get a specific message by its ID.
+        
+        Args:
+            message_id: The ID of the message to retrieve
+
+        Returns:
+            Dict containing the message details
+        """
+        return self._service.users().messages().get(
+            userId='me',
+            id=message_id,
+            format='full'
+        ).execute()
+
+    async def get_thread(self, thread_id: str) -> dict:
+        """
+        Get a complete thread with all messages by thread ID.
+        
+        Args:
+            thread_id: The ID of the thread to retrieve
+
+        Returns:
+            Dict containing the complete thread with all messages
+        """
+        return self._service.users().threads().get(
+            userId='me',
+            id=thread_id,
+            format='full'
+        ).execute()
+
     async def get_history(self, history_id: str) -> dict:
         """
         Gets history records after the specified history ID.
@@ -79,11 +111,6 @@ class GmailClient(IGmailClient):
         Returns:
             Dict containing history records from Gmail API
         """
-        time.sleep(1)
-
-        # Ensure history_id is a string
-        history_id = str(history_id)
-        
         response = self._service.users().history().list(
             userId='me',
             startHistoryId=history_id,
@@ -92,5 +119,55 @@ class GmailClient(IGmailClient):
             labelId='INBOX'  # Only get changes in INBOX
         ).execute()
         
-        print(f"Full Gmail API Response: {str(response)}")
+        # If there are messages added, get their thread history
+        if 'history' in response:
+            for history_item in response['history']:
+                if 'messagesAdded' in history_item:
+                    for message_added in history_item['messagesAdded']:
+                        thread_id = message_added['message']['threadId']
+                        print(f"\n=== Getting thread history for thread {thread_id} ===")
+                        
+                        # Get complete thread with all messages
+                        thread = self._service.users().threads().get(
+                            userId='me',
+                            id=thread_id,
+                            format='full'
+                        ).execute()
+                        
+                        print("\n=== Last 5 Messages in Thread ===")
+                        # Get last 5 messages
+                        messages = thread['messages'][-5:] if len(thread['messages']) > 5 else thread['messages']
+                        
+                        for msg in messages:
+                            headers = msg['payload']['headers']
+                            subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
+                            from_header = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'Unknown')
+                            date = next((h['value'] for h in headers if h['name'].lower() == 'date'), 'Unknown')
+                            
+                            print(f"\nFrom: {from_header}")
+                            print(f"Date: {date}")
+                            print(f"Subject: {subject}")
+                            
+                            # Get message body
+                            if 'parts' in msg['payload']:
+                                for part in msg['payload']['parts']:
+                                    if part['mimeType'] == 'text/plain':
+                                        body = part.get('body', {}).get('data', '')
+                                        if body:
+                                            import base64
+                                            decoded_body = base64.urlsafe_b64decode(body.encode('ASCII')).decode('utf-8')
+                                            print(f"Body: {decoded_body}\n")
+                            elif 'body' in msg['payload']:
+                                body = msg['payload']['body'].get('data', '')
+                                if body:
+                                    import base64
+                                    decoded_body = base64.urlsafe_b64decode(body.encode('ASCII')).decode('utf-8')
+                                    print(f"Body: {decoded_body}\n")
+                            
+                            print("-" * 50)
+                        
+                        # Store thread in the response
+                        message_added['thread'] = thread
+        
+        # print(f"\nFull Gmail API Response: {str(response)}")
         return response
