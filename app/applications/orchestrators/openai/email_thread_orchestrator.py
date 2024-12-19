@@ -109,14 +109,14 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
         if not self._openai_thread_service:
             raise RuntimeError("OpenAI services not initialized. Call initialize() first.")
 
-        # Initialize Gmail service
-        gmail_service = GmailService()
-        await gmail_service.initialize(access_token=access_token)
-
         # Get user credentials first
         user_credentials = await self._oauth_service.find_by_access_token(access_token)
         if not user_credentials:
             raise RuntimeError("OAuth credentials not found")
+
+        # Initialize Gmail service
+        gmail_service = GmailService()
+        await gmail_service.initialize(access_token=access_token, refresh_token=user_credentials.refresh_token)
 
         # Get Gmail account for the user
         gmail_account = await self._gmail_account_service.get_by_user_id(user_id)
@@ -176,3 +176,76 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
         print(message_content["text"]["value"])
             
         return message_content["text"]["value"]
+
+    async def handle_gmail_notification(self, notification_data: dict) -> None:
+        """
+        Handle Gmail push notification.
+        
+        Args:
+            notification_data: The notification data from Gmail
+        """
+        try:
+            print("Raw notification data:", notification_data)
+            
+            # PubSub sends data in base64 format
+            import base64
+            import json
+            
+            # Get the base64 encoded data
+            encoded_data = notification_data.get('message', {}).get('data')
+            if not encoded_data:
+                raise ValueError("No data found in notification")
+                
+            # Decode base64 and parse JSON
+            decoded_data = base64.b64decode(encoded_data).decode('utf-8')
+            print("Decoded data:", decoded_data)
+            data = json.loads(decoded_data)
+            print("Parsed JSON:", data)
+            
+            # Extract email address and history ID
+            email_address = data.get('emailAddress')
+            history_id = data.get('historyId')
+            
+            print(f"Extracted data - email: {email_address}, history_id: {history_id}")
+            
+            if not email_address:
+                raise ValueError("Email address not found in notification data")
+            if not history_id:
+                raise ValueError("History ID not found in notification data")
+
+            # Get the associated Gmail account by email
+            user = await self._user_service.find_user_by_email(email_address)
+            if not user:
+                raise ValueError(f"User not found for email: {email_address}")
+
+            gmail_account = await self._gmail_account_service.get_by_user_id(user.id)
+            if not gmail_account:
+                raise ValueError(f"Gmail account not found for user: {user.id}")
+
+            # Get OAuth credentials
+            oauth_creds = await self._oauth_service.find_credentials_by_email(email_address)
+            if not oauth_creds:
+                raise ValueError("OAuth credentials not found")
+
+            # Initialize Gmail service
+            gmail_service = GmailService()
+            await gmail_service.initialize(
+                access_token=oauth_creds.access_token,
+                refresh_token=oauth_creds.refresh_token
+            )
+
+            # Get changes since last history ID
+            history_changes = await gmail_service.get_history_changes(history_id)
+            print(f"History changes: {history_changes}")
+            
+            # TODO: Process history changes and update thread accordingly
+            # This will involve:
+            # 1. Extracting message IDs from history changes
+            # 2. Getting message content for each message ID
+            # 3. Updating the thread with new messages
+            pass
+            
+        except Exception as e:
+            # Log the error and re-raise it
+            print(f"Error processing Gmail notification: {str(e)}")
+            raise

@@ -224,8 +224,12 @@ class OpenAIClient(IOpenAIClient):
         # Check for active runs
         runs = await self.list_runs(thread_id, limit=1)
         if runs and runs[0].status in ["queued", "in_progress"]:
-            # Cancel the active run
-            await self.cancel_run(thread_id, runs[0].id)
+            try:
+                # Cancel the active run
+                await self.cancel_run(thread_id, runs[0].id)
+            except Exception as e:
+                # Log error but continue with creating new run
+                print(f"Error cancelling run: {e}")
             
         # Create new run
         response = await self._client.beta.threads.runs.create(

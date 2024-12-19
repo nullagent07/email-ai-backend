@@ -20,3 +20,16 @@ class IGmailClient(ABC):
             WatchResponse containing the watch response from Gmail API
         """
         pass
+
+    @abstractmethod
+    async def get_history(self, history_id: str) -> dict:
+        """
+        Gets history records after the specified history ID.
+        
+        Args:
+            history_id: ID of the last history record that you have
+
+        Returns:
+            Dict containing history records from Gmail API
+        """
+        pass

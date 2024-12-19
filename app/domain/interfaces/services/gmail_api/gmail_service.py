@@ -6,7 +6,7 @@ from app.infrastructure.integrations.gmail.dtos.gmail_watch_dto import GmailWatc
 class IGmailService(Protocol):
     """Interface for Gmail service operations."""
     
-    async def initialize(self, access_token: str) -> None:
+    async def initialize(self, access_token: str, refresh_token: Optional[str] = None) -> None:
         """
         Initialize the Gmail service with access token.
         
@@ -29,5 +29,17 @@ class IGmailService(Protocol):
             
         Returns:
             GmailWatchDTO containing watch subscription details
+        """
+        ...
+
+    async def get_history_changes(self, history_id: str) -> dict:
+        """
+        Gets history records after the specified history ID.
+        
+        Args:
+            history_id: ID of the last history record that you have
+
+        Returns:
+            Dict containing history records from Gmail API
         """
         ...

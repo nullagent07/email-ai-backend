@@ -36,7 +36,13 @@ class BaseAppSettings(BaseSettings):
     google_client_id: str = "835611854691-tut9ae4v042o4tapcsgflfcvd31j3afh.apps.googleusercontent.com"
     google_client_secret: str = "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"
     google_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"  # Обновлен в соответствии с Google Console
+    google_oauth_scopes: List[str] = [
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+        "https://www.googleapis.com/auth/gmail.modify",  # Для Gmail API watch
+    ]
 
+    # Google Cloud настройки
     google_project_id: str = "effective-reach-425812-u0"
     google_topic_id: str = "l6E-5+QaFnBk-i"
     google_service_account: str = "email-assistant@effective-reach-425812-u0.iam.gserviceaccount.com"

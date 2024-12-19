@@ -18,3 +18,15 @@ class IGmailAdapter(Protocol):
             GmailWatchDTO containing watch subscription details
         """
         ...
+
+    async def get_history_changes(self, history_id: str) -> dict:
+        """
+        Gets history records after the specified history ID.
+        
+        Args:
+            history_id: ID of the last history record that you have
+
+        Returns:
+            Dict containing history records from Gmail API
+        """
+        ...

@@ -13,14 +13,14 @@ class GmailService(IGmailService):
         """Initialize Gmail service."""
         self._adapter = None
         
-    async def initialize(self, access_token: str) -> None:
+    async def initialize(self, access_token: str, refresh_token: Optional[str] = None) -> None:
         """
         Initialize the Gmail service with access token.
         
         Args:
             access_token: The OAuth 2.0 access token for authentication
         """
-        self._adapter = GmailAdapter(access_token)
+        self._adapter = GmailAdapter(access_token, refresh_token)
         
     async def create_watch(
         self,
@@ -41,3 +41,17 @@ class GmailService(IGmailService):
             topic_name=topic_name,
             label_filters=label_filters
         )
+
+    async def get_history_changes(self, history_id: str) -> dict:
+        """
+        Gets history records after the specified history ID.
+        
+        Args:
+            history_id: ID of the last history record that you have
+
+        Returns:
+            Dict containing history records from Gmail API
+        """
+        if not self._adapter:
+            raise RuntimeError("Gmail service not initialized")
+        return await self._adapter.get_history_changes(history_id)

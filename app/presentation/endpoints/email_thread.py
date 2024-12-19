@@ -1,9 +1,11 @@
 from typing import List
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, HTTPException
 from starlette import status
 
 from app.domain.models.users import Users
 from app.presentation.schemas.email_thread import EmailThreadResponse, EmailThreadCreate
+from app.applications.services.auth.google_auth_service import GoogleAuthenticationService
+from app.infrastructure.integrations.auth.google.adapter import GoogleAuthAdapter
 from core.dependency_injection import (
     EmailThreadServiceDependency, 
     CurrentUserDependency, 
@@ -12,6 +14,7 @@ from core.dependency_injection import (
 )
 
 router = APIRouter(prefix="/email-threads", tags=["email-threads"])
+google_auth = GoogleAuthenticationService(GoogleAuthAdapter())
 
 
 @router.get(
@@ -71,7 +74,7 @@ async def create_thread(
 
 
 @router.post(
-    "/start/{assistant_id}/{thread_id}",
+    "/status/{assistant_id}/{thread_id}",
     status_code=status.HTTP_200_OK,
 )
 async def start_thread(
@@ -89,3 +92,53 @@ async def start_thread(
         assistant_id=assistant_id,
     )
     return {"status": "success", "message": "Thread started successfully"}
+
+
+@router.post(
+    "/gmail/webhook",
+    status_code=status.HTTP_200_OK,
+)
+async def gmail_webhook(
+    request: Request,
+    email_thread_orchestrator: EmailThreadOrchestratorDependency,
+):
+    """
+    Handle Gmail push notifications.
+    This endpoint receives notifications when emails are received or modified.
+    """
+    # Verify JWT token from Authorization header
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header"
+        )
+    
+    token = auth_header.split(" ")[1]
+    try:
+        # Validate the token using Google Auth service
+        await google_auth.validate_token(token)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {str(e)}"
+        )
+
+    # Parse the notification data
+    try:
+        data = await request.json()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid JSON data: {str(e)}"
+        )
+    
+    # Handle the notification
+    try:
+        await email_thread_orchestrator.handle_gmail_notification(data)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process Gmail notification: {str(e)}"
+        )

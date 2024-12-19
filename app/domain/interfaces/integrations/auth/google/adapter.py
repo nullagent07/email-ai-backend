@@ -24,3 +24,20 @@ class IGoogleAuthAdapter(ABC):
     async def revoke_token(self, token: str) -> None:
         """Отзыв токена доступа."""
         pass
+
+    @abstractmethod
+    async def verify_token(self, token: str, expected_audience: str = None) -> Dict:
+        """
+        Verify and decode Google token.
+        
+        Args:
+            token: Token to verify
+            expected_audience: Expected audience for the token. If None, will use google_client_id
+            
+        Returns:
+            Dict: Decoded token information if valid
+            
+        Raises:
+            ValueError: If token is invalid
+        """
+        pass
