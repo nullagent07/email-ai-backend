@@ -6,6 +6,8 @@ from app.domain.interfaces.integrations.gmail.client import IGmailClient
 from app.infrastructure.integrations.gmail.dtos.gmail_watch_dto import WatchRequestBody, WatchResponse
 from core.settings import get_app_settings
 
+import time
+
 settings = get_app_settings()
 
 class GmailClient(IGmailClient):
@@ -77,9 +79,18 @@ class GmailClient(IGmailClient):
         Returns:
             Dict containing history records from Gmail API
         """
+        time.sleep(1)
+
+        # Ensure history_id is a string
+        history_id = str(history_id)
+        
         response = self._service.users().history().list(
             userId='me',
             startHistoryId=history_id,
-            historyTypes=['messageAdded', 'messageDeleted', 'labelAdded', 'labelRemoved']
+            historyTypes=['messageAdded'],
+            maxResults=10,  # Get up to 10 history records
+            labelId='INBOX'  # Only get changes in INBOX
         ).execute()
+        
+        print(f"Full Gmail API Response: {str(response)}")
         return response

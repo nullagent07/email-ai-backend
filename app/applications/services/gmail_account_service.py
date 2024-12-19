@@ -70,3 +70,16 @@ class GmailAccountService(IGmailAccountService):
     async def remove_watch(self, account_id: UUID) -> Optional[GmailAccount]:
         """Удаляет watch для аккаунта Gmail."""
         return await self.gmail_account_repository.remove_watch_data(account_id)
+
+    async def update_history_id(self, account_id: UUID, history_id: str) -> Optional[GmailAccount]:
+        """
+        Обновляет history_id для аккаунта Gmail.
+
+        Args:
+            account_id: ID аккаунта Gmail
+            history_id: Новый history_id
+
+        Returns:
+            Обновленный аккаунт Gmail или None, если аккаунт не найден
+        """
+        return await self.gmail_account_repository.update_history_id(account_id, history_id)

@@ -67,3 +67,17 @@ class IGmailAccountRepository(ABC):
             Обновленный GmailAccount или None если аккаунт не найден
         """
         pass
+
+    @abstractmethod
+    async def update_history_id(self, account_id: UUID, history_id: str) -> Optional[GmailAccount]:
+        """
+        Обновляет history_id для аккаунта Gmail.
+
+        Args:
+            account_id: ID аккаунта Gmail
+            history_id: Новый history_id
+
+        Returns:
+            Обновленный аккаунт Gmail или None, если аккаунт не найден
+        """
+        pass

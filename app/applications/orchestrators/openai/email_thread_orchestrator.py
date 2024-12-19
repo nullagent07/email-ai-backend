@@ -185,7 +185,7 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
             notification_data: The notification data from Gmail
         """
         try:
-            print("Raw notification data:", notification_data)
+            # print("Raw notification data:", notification_data)
             
             # PubSub sends data in base64 format
             import base64
@@ -198,7 +198,7 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
                 
             # Decode base64 and parse JSON
             decoded_data = base64.b64decode(encoded_data).decode('utf-8')
-            print("Decoded data:", decoded_data)
+            # print("Decoded data:", decoded_data)
             data = json.loads(decoded_data)
             print("Parsed JSON:", data)
             
@@ -234,16 +234,53 @@ class EmailThreadOrchestrator(IEmailThreadOrchestrator):
                 refresh_token=oauth_creds.refresh_token
             )
 
+            # Get history changes using the stored history ID
+            stored_history_id = gmail_account.watch_history_id
+            if not stored_history_id:
+                print(f"No stored history ID found, using the one from notification")
+                stored_history_id = str(history_id)
+
             # Get changes since last history ID
-            history_changes = await gmail_service.get_history_changes(history_id)
+            history_changes = await gmail_service.get_history_changes(stored_history_id)
             print(f"History changes: {history_changes}")
             
-            # TODO: Process history changes and update thread accordingly
-            # This will involve:
-            # 1. Extracting message IDs from history changes
-            # 2. Getting message content for each message ID
-            # 3. Updating the thread with new messages
-            pass
+            # Update the history ID in database
+            await self._gmail_account_service.update_history_id(gmail_account.id, str(history_id))
+            
+            # Process history changes
+            if 'history' in history_changes:
+                print(history_changes)
+                for history_item in history_changes['history']:
+                    if 'messagesAdded' in history_item:
+                        for message_added in history_item['messagesAdded']:
+                            message = message_added.get('message', {})
+                            
+                            # Extract sender email from message headers
+                            headers = message.get('payload', {}).get('headers', [])
+                            from_header = next((h for h in headers if h['name'].lower() == 'from'), None)
+                            if not from_header:
+                                continue
+                                
+                            sender_email = from_header['value']
+                            print(f"Found message from: {sender_email}")
+                            
+                            # Get active threads for the user where this email is a recipient
+                            active_threads = await self._email_thread_service.get_threads_by_user_and_assistant(
+                                user_id=user.id,
+                                assistant_id=None  # We'll get all threads for now and filter by status
+                            )
+                            
+                            # Find matching active threads
+                            matching_threads = [
+                                thread for thread in active_threads 
+                                if thread.status == 'active' and thread.recipient_email == sender_email
+                            ]
+                            
+                            if matching_threads:
+                                print(f"Found {len(matching_threads)} matching active threads")
+                                # TODO: Process matching threads
+                            else:
+                                print(f"No active threads found for sender: {sender_email}")
             
         except Exception as e:
             # Log the error and re-raise it
