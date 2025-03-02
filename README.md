@@ -1,334 +1,285 @@
-# Email Ai Backend
+# Email AI Backend
 
-Платформа Email AI позволяет пользователям организовывать автономное общение с почтовыми ящиками от своего имени. В основе системы лежит интеграция с Gmail API и LLM (Large Language Model), что обеспечивает автоматизированное создание тредов, генерацию персонализированных ответов и настройку уникальных личностей ИИ-ассистентов через кастомные инструкции.
-
----
-
-## Содержание
-
-1. [Идея проекта](#идея-проекта)
-2. [Архитектура](#архитектура)
-   - [Основные компоненты](#основные-компоненты)
-   - [Внешние API](#внешние-api)
-3. [Технологический стек](#технологический-стек)
-4. [Архитектурный подход](#архитектурный-подход)
-5. [Структура проекта](#структура-проекта)
-6. [Модели данных](#модели-данных)
-7. [Ключевые компоненты](#ключевые-компоненты)
-   - [Оркестраторы](#оркестраторы)
-   - [Сервисы](#сервисы)
-   - [Фабрики](#фабрики)
-8. [Процесс работы с данными](#процесс-работы-с-данными)
-9. [Настройка и запуск проекта](#настройка-и-запуск-проекта)
-10. [Работа с миграциями](#работа-с-миграциями)
+The Email Assistant platform allows users to organize autonomous communication with mailboxes on their behalf. The system is based on integration with Gmail API and LLM (Large Language Model), which provides automated thread creation, generation of personalized responses, and configuration of unique AI assistant personalities through custom instructions.
 
 ---
 
-## Идея проекта
+## Table of Contents
 
-### Проблема
-- Отсутствие финансовых средств и опыта для эффективного продвижения продукта.
-
-### Целевая аудитория
-- Начинающие предприниматели.
-- Технические специалисты.
-- Стартапы.
-- Маркетологи.
-
-### MVP (Минимально жизнеспособный продукт)
-1. **Базовый функционал:**
-   - Авторизация через Gmail.
-   - Создание тредов (цепочек писем).
-   - Создание персонализированных ИИ-ассистентов.
-   - Автоматическая генерация и отправка первого сообщения.
-   - Обработка входящих ответов.
-   - Генерация ответов от ИИ.
-   - Автономный режим ответов.
-
-### Пользовательский опыт
-1. Авторизация в системе.
-2. Создание личности ассистента.
-3. Запуск автоматизированного общения.
-4. Автономная работа системы.
+1. [Project Idea](#project-idea)
+2. [Architecture](#architecture)
+   - [Main Components](#main-components)
+   - [External APIs](#external-apis)
+3. [Technology Stack](#technology-stack)
+4. [Architectural Approach](#architectural-approach)
+5. [Project Structure](#project-structure)
+6. [Data Models](#data-models)
+7. [Key Components](#key-components)
+   - [Orchestrators](#orchestrators)
+   - [Services](#services)
+   - [Factories](#factories)
+8. [Data Processing Flow](#data-processing-flow)
+9. [Project Setup and Launch](#project-setup-and-launch)
+10. [Working with Migrations](#working-with-migrations)
 
 ---
 
-## Архитектура
+## Project Idea
 
-### Основные компоненты
+### Problem
+- Lack of financial resources and experience for effective product promotion.
+
+### Target Audience
+- Beginning entrepreneurs.
+- Technical specialists.
+- Startups.
+- Marketers.
+
+### MVP (Minimum Viable Product)
+1. **Basic Functionality:**
+   - Authorization through Gmail.
+   - Creation of threads (email chains).
+   - Creation of personalized AI assistants.
+   - Automatic generation and sending of the first message.
+   - Processing of incoming responses.
+   - Generation of AI responses.
+   - Autonomous response mode.
+
+### User Experience
+1. Authorization in the system.
+2. Creating an assistant personality.
+3. Launching automated communication.
+4. Autonomous system operation.
+
+---
+
+## Architecture
+
+### Main Components
 
 #### Frontend
-- **Авторизация:** Вход через Gmail.
-- **Главная страница:** Основной интерфейс платформы.
-- **Боковая панель навигации:**
-  - Логотип.
+- **Authorization:** Login via Gmail.
+- **Main Page:** Primary platform interface.
+- **Side Navigation Panel:**
+  - Logo.
   - Email Assistant.
-  - Кнопка выхода.
-- **Интерфейс Email Assistant:**
-  - Управление профилями ассистентов.
-  - Управление тредами (цепочками писем).
-  - История переписки.
+  - Logout button.
+- **Email Assistant Interface:**
+  - Management of assistant profiles.
+  - Management of threads (email chains).
+  - Correspondence history.
 
 #### Backend
-- **SSO авторизация:** Обработка входа через Gmail.
-- **Интеграция с Gmail API:**
-  - Запрос необходимых разрешений.
-  - Управление учетными данными пользователя.
-  - Отслеживание изменений в почтовом ящике (watch).
-  - Получение истории изменений почты.
+- **SSO Authorization:** Processing login via Gmail.
+- **Integration with Gmail API:**
+  - Requesting necessary permissions.
+  - Managing user credentials.
+  - Tracking changes in the mailbox (watch).
+  - Getting mail history changes.
 - **API Endpoints:**
-  - Управление тредами.
-  - Управление ассистентами.
-  - Обработка входящей почты.
-  - Валидация данных и токенов.
-- **Шифрование данных:** Обеспечение безопасности пользовательских данных.
+  - Thread management.
+  - Assistant management.
+  - Incoming mail processing.
+  - Data and token validation.
+- **Data Encryption:** Ensuring user data security.
 
 #### Database
-- Хранение:
-  - Пользовательских данных.
-  - Тредов.
-  - Профилей ассистентов.
+- Storage of:
+  - User data.
+  - Threads.
+  - Assistant profiles.
   - Gmail credentials.
-  - История watchs для Gmail.
+  - Watch history for Gmail.
 
-#### Внешние API
+#### External APIs
 
 - **Gmail SDK:**
-  - Авторизация.
-  - PubSub API для получения уведомлений.
-  - Отправка сообщений.
-  - Получение истории изменений.
+  - Authorization.
+  - PubSub API for receiving notifications.
+  - Sending messages.
+  - Getting history of changes.
 
 - **OpenAI API:**
-  - Создание ассистентов.
-  - Создание тредов.
-  - Генерация ответов.
-  - Управление контекстом беседы.
+  - Creating assistants.
+  - Creating threads.
+  - Generating responses.
+  - Managing conversation context.
 
 ---
 
-## Технологический стек
+## Technology Stack
 
 - **Backend:** FastAPI.
 - **Frontend:** Remix.run.
-- **База данных:** PostgreSQL с асинхронным доступом через SQLAlchemy.
-- **ИИ:** OpenAI API (Assistants API).
+- **Database:** PostgreSQL with asynchronous access via SQLAlchemy.
+- **AI:** OpenAI API (Assistants API).
 - **Email:** Gmail API.
-- **Месседжинг:** Google PubSub API.
-- **Аутентификация:** OAuth2 через Authlib.
-- **Миграции:** Alembic.
-- **Управление зависимостями:** PDM.
+- **Messaging:** Google PubSub API.
+- **Authentication:** OAuth2 via Authlib.
+- **Migrations:** Alembic.
+- **Dependency Management:** PDM.
 
 ---
 
-## Архитектурный подход
+## Architectural Approach
 
-Приложение реализовано с использованием монолитной архитектуры с четким разделением слоев и применением следующих паттернов:
+The application is implemented using a monolithic architecture with clear layer separation and application of the following patterns:
 
-- **Фабричный метод (Factory):** Для создания сервисов и адаптеров (OpenAIFactory, AuthServiceFactory).
-- **Репозиторий (Repository):** Слой абстракции для работы с базой данных.
-- **Адаптер (Adapter):** Для интеграции с внешними API (GoogleAuthAdapter, OpenAIAdapter).
-- **Оркестратор (Orchestrator):** Для координации бизнес-процессов между различными сервисами.
-- **Интерфейсы и DI:** Использование интерфейсов и внедрения зависимостей для обеспечения гибкости и тестируемости.
+- **Factory Method:** For creating services and adapters (OpenAIFactory, AuthServiceFactory).
+- **Repository:** Abstraction layer for working with the database.
+- **Adapter:** For integration with external APIs (GoogleAuthAdapter, OpenAIAdapter).
+- **Orchestrator:** For coordinating business processes between different services.
+- **Interfaces and DI:** Using interfaces and dependency injection to ensure flexibility and testability.
 
-Структура проекта следует принципам чистой архитектуры с разделением на:
-- **Представление (presentation):** API эндпоинты и схемы данных.
-- **Бизнес-логика (applications):** Оркестраторы, сервисы и фабрики.
-- **Инфраструктура (infrastructure):** Репозитории и интеграции с внешними системами.
-- **Домен (domain):** Модели данных, интерфейсы и бизнес-исключения.
-
----
-
-## Модели данных
-
-- **Users:** Информация о пользователях системы.
-- **OAuthCredentials:** Данные OAuth-авторизации (токены, время жизни).
-- **GmailAccount:** Информация о подключенных Gmail-аккаунтах и их статусе отслеживания.
-- **AssistantProfiles:** Профили ассистентов с инструкциями и возможностями.
-- **EmailThreads:** Цепочки писем с статусами (активные/остановленные).
+The project structure follows clean architecture principles with division into:
+- **Presentation:** API endpoints and data schemas.
+- **Business Logic (applications):** Orchestrators, services, and factories.
+- **Infrastructure:** Repositories and integrations with external systems.
+- **Domain:** Data models, interfaces, and business exceptions.
 
 ---
 
-## Ключевые компоненты
+## Data Models
 
-### Оркестраторы
-- **AuthOrchestrator:** Управляет процессом аутентификации.
-- **AssistantOrchestrator:** Создание и управление ассистентами OpenAI.
-- **EmailThreadOrchestrator:** Управление цепочками писем и интеграция с Gmail и OpenAI.
-
-### Сервисы
-- **GoogleAuthenticationService:** Аутентификация через Google.
-- **OpenAIAssistantService:** Работа с ассистентами OpenAI.
-- **OpenAIThreadService:** Работа с тредами OpenAI.
-- **GmailService:** Работа с Gmail API.
-- **EmailThreadService:** Управление цепочками писем в базе данных.
-
-### Фабрики
-- **OpenAIFactory:** Создание сервисов и адаптеров для работы с OpenAI.
-- **AuthServiceFactory:** Создание сервисов аутентификации.
+- **Users:** Information about system users.
+- **OAuthCredentials:** OAuth authorization data (tokens, lifetime).
+- **GmailAccount:** Information about connected Gmail accounts and their tracking status.
+- **AssistantProfiles:** Assistant profiles with instructions and capabilities.
+- **EmailThreads:** Email chains with statuses (active/stopped).
 
 ---
 
-## Процесс работы с данными
+## Key Components
 
-1. **Аутентификация:**
-   - Пользователь авторизуется через Google OAuth.
-   - Система сохраняет токены и создает аккаунт пользователя.
+### Orchestrators
+- **AuthOrchestrator:** Manages the authentication process.
+- **AssistantOrchestrator:** Creation and management of OpenAI assistants.
+- **EmailThreadOrchestrator:** Management of email chains and integration with Gmail and OpenAI.
 
-2. **Создание ассистента:**
-   - Пользователь создает профиль ассистента с инструкциями.
-   - Система создает ассистента в OpenAI и сохраняет его ID.
+### Services
+- **GoogleAuthenticationService:** Authentication through Google.
+- **OpenAIAssistantService:** Working with OpenAI assistants.
+- **OpenAIThreadService:** Working with OpenAI threads.
+- **GmailService:** Working with Gmail API.
+- **EmailThreadService:** Managing email chains in the database.
 
-3. **Создание треда:**
-   - Пользователь задает параметры треда (получатель, инструкции).
-   - Система создает тред в OpenAI и настраивает отслеживание в Gmail.
-
-4. **Автономная работа:**
-   - Gmail уведомляет систему о новых письмах через PubSub.
-   - Система получает содержимое письма и передает его в тред OpenAI.
-   - OpenAI генерирует ответ на основе контекста и инструкций.
-   - Система отправляет ответ через Gmail API.
+### Factories
+- **OpenAIFactory:** Creating services and adapters for working with OpenAI.
+- **AuthServiceFactory:** Creating authentication services.
 
 ---
 
-## Настройка и запуск проекта
+## Data Processing Flow
 
-1. Клонирование репозитория:
+1. **Authentication:**
+   - User authorizes through Google OAuth.
+   - The system saves tokens and creates a user account.
+
+2. **Creating an Assistant:**
+   - User creates an assistant profile with instructions.
+   - The system creates an assistant in OpenAI and saves its ID.
+
+3. **Creating a Thread:**
+   - User sets thread parameters (recipient, instructions).
+   - The system creates a thread in OpenAI and sets up tracking in Gmail.
+
+4. **Autonomous Operation:**
+   - Gmail notifies the system about new emails via PubSub.
+   - The system retrieves the email content and passes it to the OpenAI thread.
+   - OpenAI generates a response based on context and instructions.
+   - The system sends the response via Gmail API.
+
+---
+
+## Project Setup and Launch
+
+1. Clone the repository:
    ```bash
    git clone <your-repo-url>
    cd email-asistent
    ```
 
-2. Настройка окружения:
+2. Environment setup:
    ```bash
    cp .env.example .env
-   # Отредактируйте .env, добавив ваши ключи API и конфигурацию базы данных
+   # Edit .env, adding your API keys and database configuration
    ```
 
-3. Установка зависимостей с помощью PDM:
+3. Install dependencies using PDM:
    ```bash
    pdm install
    ```
 
-4. Применение миграций:
+4. Apply migrations:
    ```bash
    alembic upgrade head
    ```
 
-5. Запуск сервера:
+5. Start the server:
    ```bash
    uvicorn main:app --reload
    ```
 
-## Работа с миграциями
+## Working with Migrations
 
-1. Создание новой миграции:
+1. Create a new migration:
    ```bash
-   alembic revision --autogenerate -m "Описание изменений"
+   alembic revision --autogenerate -m "Description of changes"
    ```
 
-2. Применение миграций:
+2. Apply migrations:
    ```bash
    alembic upgrade head
    ```
 
-3. Откат к предыдущей версии:
+3. Rollback to previous version:
    ```bash
    alembic downgrade -1
    ```
 
-4. Получение текущей версии:
+4. Get current version:
    ```bash
    alembic current
    ```
 
 ---
 
-## Структура проекта
+## Project Structure
 
 ```
-├── alembic
-├── core
-│   ├── settings.py
-│   ├── dependency_injection.py
-│   ├── logger.py
-│   └── exception_handler.py
-├── config
-│   ├── base.py
-│   ├── development.py
-│   ├── production.py
-│   └── test.py
-├── app
-│   ├── presentation
-│   │   ├── endpoints
-│   │   └── schemas
-│   ├── applications
-│   │   ├── orcestrators
-│   │   └── services
-│   ├── infrastructure
-│   │   ├── repositories 
-│   │   └── integrations
-│   └── domain
-│       ├── models
-│       └── exceptions
-├── .env.example
-├── README.md
-├── .env
-├── Dockerfile
-├── docker-compose.yml
-├── pdm.lock
-└── pyproject.toml
+├── alembic                     # Database migrations
+│   ├── versions                # Migration versions
+│   ├── env.py                  # Environment settings for migrations
+│   └── script.py.mako          # Template for generating migrations
+├── core                        # Application core
+│   ├── settings.py             # Application settings
+│   ├── dependency_injection.py # Dependency injection
+│   ├── logger.py               # Logging configuration
+│   └── exception_handler.py    # Exception handlers
+├── config                      # Configurations for different environments
+│   ├── base.py                 # Base configuration
+│   ├── development.py          # Development configuration
+│   ├── production.py           # Production configuration
+│   └── test.py                 # Test configuration
+├── app                         # Main application code
+│   ├── presentation            # Presentation layer
+│   │   ├── endpoints           # API endpoints
+│   │   └── schemas             # Data schemas (Pydantic)
+│   ├── applications            # Application layer
+│   │   ├── orchestrators       # Business process orchestrators
+│   │   ├── services            # Services
+│   │   └── factories           # Factories for object creation
+│   ├── infrastructure          # Infrastructure layer
+│   │   ├── repositories        # Repositories for DB operations
+│   │   └── integrations        # Integrations with external services
+│   └── domain                  # Domain layer
+│       ├── models              # Data models
+│       ├── interfaces          # Interfaces
+│       └── exceptions          # Domain exceptions
+├── .env.example                # Example environment configuration
+├── README.md                   # Project documentation
+├── Dockerfile                  # Docker configuration
+├── docker-compose.yml          # Docker Compose configuration
+├── pdm.lock                    # PDM dependencies lock file
+└── pyproject.toml              # Project configuration and dependencies
 ```
-
----
-
-## Пошаговая инструкция по созданию шаблона проекта
-
-1. Инициализация проекта с помощью [pdm](https://pdm.fming.dev/):
-   ```bash
-   pdm init
-   ```
-2. Добавление основных зависимостей:
-   ```bash
-   pdm add fastapi uvicorn 'pydantic[dotenv]' alembic pydantic-settings==2.4.0
-   ```
-3. Добавление зависимостей для разработки:
-   ```bash
-   pdm add --dev black isort flake8 mypy pytest pytest-asyncio
-   ```
-   При выборе лицензии укажите **Proprietary**.
-4. Инициализация Alembic:
-   ```bash
-   alembic init alembic
-   ```
-5. Создайте файл `alembic/env.py` и обновите его для использования настроек вашего приложения.
-6. Создание первой миграции:
-   ```bash
-   alembic revision --autogenerate -m "Initial migration"
-   ```
-7. Применение миграций:
-   ```bash
-   alembic upgrade head
-   ```
-8. Структурирование проекта:
-   ```bash
-   mkdir -p alembic core config app/{presentation,applications,infrastructure,domain}
-   mkdir -p app/presentation/{endpoints,schemas}
-   mkdir -p app/applications/{orcestrators,services}
-   mkdir -p app/infrastructure/{repositories,integrations}
-   mkdir -p app/domain/{models,exceptions}
-   touch alembic
-   touch core/{settings.py,dependency_injection.py,logger.py,exception_handler.py}
-   touch config/{base.py,development.py,production.py,test.py}
-   touch app/presentation/endpoints/__init__.py
-   touch app/presentation/schemas/__init__.py
-   touch app/applications/orcestrators/__init__.py
-   touch app/applications/services/__init__.py
-   touch app/infrastructure/repositories/__init__.py
-   touch app/infrastructure/integrations/__init__.py
-   touch app/domain/models/__init__.py
-   touch app/domain/exceptions/__init__.py
-   touch .env.example
-   touch Dockerfile
-   touch docker-compose.yml
-   ```
