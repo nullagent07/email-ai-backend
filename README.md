@@ -1,295 +1,147 @@
 # Email Assistant
 
-## Структура базы данных
+## Идея проекта
 
-### Таблица `User` (Пользователь)
-- **user_id** (Primary Key): Уникальный идентификатор пользователя.
-- **name** (Primary Key): Уникальный идентификатор пользователя.
-- **email**: Email пользователя, используемый для авторизации.
-- **password_hash** Зашифрованный пароль пользователя.
-- **is_subscription_active** (Boolean): Флаг, указывающий, активна ли подписка.
+### Проблема
+- Отсутствие денег и опыта для продвижения продукта
 
-### Таблица `Email_Threads` (Поток)
-- **thread_id** (Primary Key): Уникальный идентификатор для каждого треда.
-- **user_id** (Foreign Key): Ссылка на `id` пользователя, которому принадлежит тред.
-- **thread_name**: Название треда.
-- **creation_date**: Дата создания треда, по умолчанию текущее время.
-- **description**: Описание AI-ассистента.
-- **status** Статус треда (активен или закрыт).
+### Целевая аудитория
+- Начинающие предприниматели
+- Технические специалисты
+- Стартапы
+- Маркетологи
 
-### Таблица `Email_Message` (История сообщений)
-- **message_id** (Primary Key): Уникальный идентификатор для каждого сообщения.
-- **thread_id** (Foreign Key): Идентификатор треда, к которому относится сообщение.
-- **sender_email**: Email отправителя.
-- **receiver_email**: Email получателя.
-- **sent_date** (Enum: "sent", "received"): Дата и время отправления сообщения.
-- **content**: Содержание сообщения.
-- **status**: Временная метка сообщения (дата и время отправки/получения).
+### MVP (Минимально жизнеспособный продукт)
+1. Базовый функционал:
+   - Авторизация через Gmail
+   - Создание тредов (цепочек писем)
+   - Создание персонализированных ИИ-ассистентов
+   - Автоматическая генерация и отправка первого сообщения
+   - Обработка входящих ответов
+   - Генерация ответов от ИИ
+   - Автономный режим ответов
 
-## Структура проекта
-<!-- ``` -->
-my_project/
-│
-├── app/
-│   └── core/
-│   │   └── config.py
-│   ├── main.py
-│   ├── endpoints/
-│   │   ├── __init__.py
-│   ├── services/
-│   │   ├── __init__.py
-│   ├── repositories/
-│   │   ├── __init__.py
-│   ├── models/
-│   │   ├── __init__.py
-│   ├── schemas/
-│   │   ├── __init__.py
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   └── auth.py
-│   └── config.py
-│
-├── alembic/
-│   ├── versions/
-│   └── env.py
-│
-├── tests/
-│   ├── __init__.py
-│   ├── test_users.py
-│   └── test_contacts.py
-│
-└── pdm.lock
-<!-- ``` -->
+### Пользовательский опыт
+1. Авторизация в системе
+2. Создание личности ассистента
+3. Запуск автоматизированного общения
+4. Автономная работа системы
+
+## Архитектура
+
+### 1. Основные компоненты
+
+#### Frontend
+- Авторизация
+- Главная страница
+- Боковая панель навигации:
+  - Логотип
+  - Email assistant
+  - Выход
+- Интерфейс email assistant:
+  - Управление профилями ассистентов
+  - Управление тредами
+  - История переписки
+
+#### Backend
+- SSO авторизация
+- Интеграция с Gmail API:
+  - Запрос необходимых разрешений
+  - Управление учетными данными
+- API endpoints:
+  - Управление тредами
+  - Управление ассистентами
+  - Обработка входящей почты
+  - Валидация данных и токенов
+- Шифрование пользовательских данных
+
+#### Database
+- Пользовательские данные
+- Треды
+- Профили ассистентов
+- Gmail credentials
+
+#### Внешние API
+- Gmail SDK:
+  - Авторизация
+  - PubSub API
+  - Отправка сообщений
+  
+### 2. Технологический стек
+- Backend: FastAPI
+- Frontend: Remix.run
+- Database: PostgreSQL
+- AI: OpenAI API
+- Email: Gmail API
+- Messaging: PubSub API
+
+### 3. Архитектурный подход
+Монолитная архитектура с разделением на слои:
+- Множество оркестраторов по бизнес-процессам
+
+### 4. Структура проектаI
+	- alembic
+	- core
+		- settings.py
+		- dependency_injection.py
+		- logger.py
+		- exception_handler.py
+	- config
+        - base.py
+		- development.py
+		- production.py
+		- test.py
+	- app
+		- presentation
+			- endpoints
+			- schemas
+		- aplications
+			- orcestrators
+			- services
+		- infrastructure
+			- repositories 
+			- integrations
+		- domain
+			- models
+			- exceptions
+	- .env.example
+    - README.md
+    - .env
+	- Dokcerfile
+	- docker-compose.yml
+	- pdm.lock
+	- pyproject.toml
 
 
-### Описание структуры проекта
+**Пошаговая инструкция для создания базового шаблона проекта**
 
-- **app/main.py**: Инициализация приложения FastAPI.
-- **app/endpoints/**: Содержит маршруты API для различных функциональностей.
-- **app/services/**: Содержит бизнес-логику приложения.
-- **app/repositories/**: Содержит операции с базой данных.
-- **app/models/**: Содержит модели базы данных.
-- **app/schemas/**: Содержит Pydantic схемы для валидации данных.
-- **app/utils/**: Содержит вспомогательные функции.
-  - **auth.py**: Функции для аутентификации.
-- **app/core/config.py**: Управление настройками приложения.
-- **alembic/**: Содержит файлы для миграций базы данных.
-- **tests/**: Содержит тесты для приложения.
-
-Эта структура проекта организована в соответствии с принципами трехслойной архитектуры, что обеспечивает четкое разделение ответственности и упрощает поддержку и развитие приложения.
-
-## Запуск базы данных с помощью Docker
-
-Для запуска локальной базы данных PostgreSQL используйте следующую команду:
-
-### Описание команды
-
-- **docker-compose**: Утилита для управления многоконтейнерными Docker приложениями.
-- **up**: Запускает контейнеры, определенные в `docker-compose.yml`.
-- **-d**: Запускает контейнеры в фоновом режиме (detached mode).
-
-Эта команда поднимает все сервисы, описанные в `docker-compose.yml`, в том числе и базу данных PostgreSQL, обеспечивая их работу в фоновом режиме. Это позволяет вашему приложению подключаться к базе данных для выполнения операций.
-
-## Команды миграции базы данных
-
-### `alembic revision --autogenerate -m "Create user table"`
-Создает файл миграции на основе обнаруженных изменений в моделях SQLAlchemy. Эта команда анализирует разницу между текущей структурой базы данных и определенными моделями, генерируя необходимый Python-код для синхронизации схемы базы данных.
-
-### `alembic upgrade head`
-Применяет все неприменённые миграции к базе данных до последней версии. Команда выполняет все необходимые изменения схемы, описанные в файлах миграции, обновляя структуру базы данных до актуального состояния.
-
-### `alembic downgrade base`
+----
+1. pdm init
+2. pdm add fastapi uvicorn 'pydantic[dotenv]' alembic pydantic-settings==2.4.0
+3. pdm add --dev black isort flake8 mypy pytest pytest-asyncio
+	1. License(SPDX name) (MIT): **Proprietary**
+4. alembic init alembic
+5. Создай файл `alembic/env.py` и обнови его так, чтобы он использовал настройки вашего приложения:
+6. alembic revision --autogenerate -m "Initial migration"
+7. alembic upgrade head
 
 ```
-\l              -- список всех баз данных
-\dt             -- список всех таблиц в текущей базе данных
-\d имя_таблицы  -- описание структуры конкретной таблицы
-\du             -- список пользователей
-\conninfo       -- информация о текущем подключении
-\q              -- выход из psql
-SELECT version();           -- версия PostgreSQL
-SELECT current_date;        -- текущая дата
-\h                         -- помощь по SQL командам
-\?                         -- помощь по командам psql
-SELECT * FROM alembic_version; -- инофрмация о миграциях
-
-DROP TYPE IF EXISTS messagedirection;
-DROP TYPE IF EXISTS messagetype;
-DROP TYPE IF EXISTS threadstatus;
-```
-
-```shell
-docker exec -it postgres_db psql -U postgres
-```
-
-## Архитектура OAuth авторизации
-
-### Основные компоненты
-
-1. **OAuth Callback Endpoint**
-- Обрабатывает ответ от провайдера OAuth (Google, GitHub и т.д.)
-- Верифицирует полученные токены
-- Создает/обновляет пользователя в системе
-- Выдает JWT токен для дальнейшей аутентификации
-
-2. **Хранение OAuth данных**
-- Таблица `oauth_credentials` хранит токены доступа к API провайдеров
-- Отдельная таблица позволяет поддерживать множество OAuth провайдеров
-- Связь one-to-one с таблицей пользователей
-
-3. **Двухуровневая система токенов**
-- Внешни токены: сохраняются для доступа к API провайдеров (Gmail API)
-- Внутренний JWT токен: используется для аутентификации в приложении
-
-### Преимущества архитектуры
-
-1. **Гибкость**: Легкое добавление новых OAuth провайдеров
-2. **Безопасность**: Разделение внешних и внутренних токенов
-3. **Масштабируемость**: Поддержка множества провайдеров без изменения основной логики
-4. **Контроль**: Собственная система сессий независимо от провайдеров
-
-### Процесс аутентификации
-
-1. Пользователь авторизуется через OAuth провайдера
-2. Приложение получает и верифицирует токены провайдера
-3. Создается/обновляется запись в БД с токенами провайдера
-4. Генерируется JWT токен для пользователя
-5. JWT токен используется для последующих запросов к API
-
-Код реализации можно найти в:
-- `/app/endpoints/auth/oauth.py` - OAuth endpoints
-- `/app/services/auth_service.py` - Бизнес-логика авторизации
-- `/app/models/oauth_credentials.py` - Модель данных OAuth
-
-# OAuth2 Авторизация через Google
-
-## Общий процесс авторизации
-
-### 1. Инициация авторизации (`/auth/google/login`)
-
-python:app/endpoints/auth/oauth.py
-startLine: 18
-endLine: 50
-
-
-Эндпоинт выполняет следующие действия:
-- Генерирует защищенный state-токен для предотвращения CSRF-атак
-- Сохраняет state-токен в HTTP-only cookie
-- Формирует URL для авторизации Google со следующими параметрами:
-  - `client_id`: ID приложения в Google Cloud
-  - `redirect_uri`: URL для обработки ответа
-  - `scope`: Запрашиваемые разрешения
-  - `access_type`: "offline" для получения refresh token
-  - `prompt`: "consent" для отображения окна подтверждения
-
-### 2. Callback от Google (`/auth/google/callback`)
-python:app/endpoints/auth/oauth.py
-startLine: 52
-endLine: 85
-
-После подтверждения пользователем:
-- Проверяется state-токен для защиты от CSRF
-- Код авторизации обменивается на токены доступа
-- Создается/обновляется пользователь в БД
-- Устанавливается JWT токен в cookie
-
-### 3. Верификация токенов
-python:app/utils/oauth_verification.py
-startLine: 6
-endLine: 62
-
-Процесс проверки включает:
-- Обмен кода на токены через Google API
-- Получение информации о пользователе
-- Валидацию всех необходимых разрешений
-
-### 4. Аутентификация пользователя
-python:app/services/auth_service.py
-startLine: 20
-endLine: 62
-
-
-Сервисный слой выполняет:
-- Поиск существующих OAuth credentials
-- Обновление токенов для существующих пользователей
-- Создание новых пользователей при первом входе
-- Генерацию JWT токена для сессии
-
-## Структура данных
-
-### Модели Pydantic для валидации
-python:app/schemas/auth.py
-startLine: 1
-endLine: 21
-
-
-Основные схемы:
-- `GoogleAuthRequest`: Валидация входящего запроса
-- `OAuthUser`: Создание нового пользователя
-- `OAuthCredentials`: Сохранение OAuth токенов
-
-## Интеграция с Gmail API
-python:app/utils/gmail_auth.py
-startLine: 11
-endLine: 90
-
-
-Включает:
-- Проверку валидности Gmail токенов
-- Автоматическое обновление просроченных токенов
-- Валидацию необходимых разрешений Gmail API
-
-## Преимущества реализации
-
-1. **Безопасность**:
-   - CSRF защита через state-токен
-   - HTTP-only cookies
-   - Безопасное хранение токенов
-   - Валидация всех токенов и разрешений
-
-2. **Масштабируемость**:
-   - Легкое добавление новых OAuth провайдеров
-   - Поддержка refresh токенов
-   - Асинхронная обработка запросов
-
-3. **Удобство использования**:
-   - Автоматическое обновление токенов
-   - Единый JWT токен для всех сервисов
-   - Простая интеграция с фронтендом
-
-4. **Надежность**:
-   - Комплексная обработка ошибок
-   - Валидация данных через Pydantic
-   - Транзакционные операции с БД
-
-## Требования для развертывания
-
-1. **Google Cloud Project**:
-   - OAuth 2.0 credentials
-   - Настроенные redirect URI
-   - Активированный Gmail API
-
-2. **Переменные окружения**:
-   ```env
-   GOOGLE_CLIENT_ID=your_client_id
-   GOOGLE_CLIENT_SECRET=your_client_secret
-   GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
-   ```
-
-3. **База данных**:
-   - PostgreSQL 12+
-   - Выполненные миграции для OAuth таблиц
-
-## Использование в API
-
-Пример проверки Gmail токена:
-
-python:app/endpoints/assistants/email_assistant.py
-startLine: 1
-endLine: 41
-
-
-Эндпоинт демонстрирует:
-- Проверку валидности токена
-- Автоматическое обновление при необходимости
-- Обработку ошибок доступа
+mkdir -p alembic core config app/{presentation,applications,infrastructure,domain}
+mkdir -p app/presentation/{endpoints,schemas}
+mkdir -p app/applications/{orcestrators,services}
+mkdir -p app/infrastructure/{repositories,integrations}
+mkdir -p app/domain/{models,exceptions}
+touch alembic
+touch core/{settings.py,dependency_injection.py,logger.py,exception_handler.py}
+touch config/{base.py,development.py,production.py,test.py}
+touch app/presentation/endpoints/__init__.py
+touch app/presentation/schemas/__init__.py
+touch app/applications/orcestrators/__init__.py
+touch app/applications/services/__init__.py
+touch app/infrastructure/repositories/__init__.py
+touch app/infrastructure/integrations/__init__.py
+touch app/domain/models/__init__.py
+touch app/domain/exceptions/__init__.py
+touch .env.example
+touch Dockerfile
+touch docker-compose.yml
