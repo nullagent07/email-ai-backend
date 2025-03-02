@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build, Resource
 
@@ -101,31 +101,39 @@ class GmailClient(IGmailClient):
             format='full'
         ).execute()
 
-    async def get_history(self, history_id: str) -> dict:
+    async def get_history(self, history_id: str, user_email: str) -> Tuple[str, str]:
         """
         Gets history records after the specified history ID.
         
         Args:
             history_id: ID of the last history record that you have
+            user_email: Email of the current user
 
         Returns:
-            Dict containing history records from Gmail API
+            Tuple containing (thread_history, receiver_email)
         """
         response = self._service.users().history().list(
             userId='me',
             startHistoryId=history_id,
             historyTypes=['messageAdded'],
-            maxResults=10,  # Get up to 10 history records
-            labelId='INBOX'  # Only get changes in INBOX
+            maxResults=10,
+            labelId='INBOX'
         ).execute()
         
-        # If there are messages added, get their thread history
-        if 'history' in response:
+        thread_history = ""
+        receiver_email = None
+        
+        # Check if response is not None and has 'history' key
+        if response and isinstance(response, dict) and 'history' in response:
             for history_item in response['history']:
                 if 'messagesAdded' in history_item:
                     for message_added in history_item['messagesAdded']:
-                        thread_id = message_added['message']['threadId']
-                        print(f"\n=== Getting thread history for thread {thread_id} ===")
+                        message = message_added.get('message', {})
+                        print("Message data:", message)  # Временно добавим для отладки
+                        thread_id = message.get('threadId')
+                        
+                        if not thread_id:
+                            continue
                         
                         # Get complete thread with all messages
                         thread = self._service.users().threads().get(
@@ -134,40 +142,80 @@ class GmailClient(IGmailClient):
                             format='full'
                         ).execute()
                         
-                        print("\n=== Last 5 Messages in Thread ===")
-                        # Get last 5 messages
-                        messages = thread['messages'][-5:] if len(thread['messages']) > 5 else thread['messages']
+                        # Find the other participant's email
+                        for msg in thread.get('messages', []):
+                            headers = msg.get('payload', {}).get('headers', [])
+                            from_header = next((h['value'] for h in headers if h['name'].lower() == 'from'), None)
+                            if from_header and '<' in from_header:
+                                email = from_header.split('<')[1].split('>')[0]
+                                if email != user_email:
+                                    receiver_email = email
+                                    print(f"Found receiver email: {receiver_email}")
+                                    break
+                        
+                        # Format thread history
+                        messages = thread.get('messages', [])[-5:] if len(thread.get('messages', [])) > 5 else thread.get('messages', [])
                         
                         for msg in messages:
-                            headers = msg['payload']['headers']
+                            payload = msg.get('payload', {})
+                            headers = payload.get('headers', [])
                             subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
                             from_header = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'Unknown')
                             date = next((h['value'] for h in headers if h['name'].lower() == 'date'), 'Unknown')
                             
-                            print(f"\nFrom: {from_header}")
-                            print(f"Date: {date}")
-                            print(f"Subject: {subject}")
+                            thread_history += f"\nFrom: {from_header}\n"
+                            thread_history += f"Date: {date}\n"
+                            thread_history += f"Subject: {subject}\n"
                             
                             # Get message body
-                            if 'parts' in msg['payload']:
-                                for part in msg['payload']['parts']:
+                            if 'parts' in payload:
+                                for part in payload['parts']:
                                     if part['mimeType'] == 'text/plain':
                                         body = part.get('body', {}).get('data', '')
                                         if body:
                                             import base64
                                             decoded_body = base64.urlsafe_b64decode(body.encode('ASCII')).decode('utf-8')
-                                            print(f"Body: {decoded_body}\n")
-                            elif 'body' in msg['payload']:
-                                body = msg['payload']['body'].get('data', '')
+                                            thread_history += f"Body: {decoded_body}\n"
+                            elif 'body' in payload:
+                                body = payload['body'].get('data', '')
                                 if body:
                                     import base64
                                     decoded_body = base64.urlsafe_b64decode(body.encode('ASCII')).decode('utf-8')
-                                    print(f"Body: {decoded_body}\n")
+                                    thread_history += f"Body: {decoded_body}\n"
                             
-                            print("-" * 50)
+                            thread_history += "-" * 50 + "\n"
                         
-                        # Store thread in the response
-                        message_added['thread'] = thread
+                        # We found what we need, no need to continue processing
+                        return thread_history, receiver_email
         
-        # print(f"\nFull Gmail API Response: {str(response)}")
-        return response
+        return thread_history, receiver_email
+
+    async def get_user_email(self) -> str:
+        """Get the email address of the authenticated user."""
+        user_info = self._service.users().getProfile(userId='me').execute()
+        return user_info['emailAddress']
+
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        message_text: str,
+        thread_id: Optional[str] = None
+    ) -> None:
+        """
+        Send an email using Gmail API.
+        
+        Args:
+            to_email: Recipient's email address
+            subject: Email subject
+            message_text: Base64 encoded MIME message
+            thread_id: Optional thread ID for replying to a thread
+        """
+        message = {'raw': message_text}
+        if thread_id:
+            message['threadId'] = thread_id
+
+        self._service.users().messages().send(
+            userId='me',
+            body=message
+        ).execute()

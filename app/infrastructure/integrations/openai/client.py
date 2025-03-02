@@ -192,7 +192,7 @@ class OpenAIClient(IOpenAIClient):
             limit=limit,
             order=order
         )
-        return response.data
+        return [run.model_dump() for run in response.data]
 
     async def cancel_run(
         self,
@@ -223,10 +223,10 @@ class OpenAIClient(IOpenAIClient):
 
         # Check for active runs
         runs = await self.list_runs(thread_id, limit=1)
-        if runs and runs[0].status in ["queued", "in_progress"]:
+        if runs and runs[0].get("status") in ["queued", "in_progress"]:
             try:
                 # Cancel the active run
-                await self.cancel_run(thread_id, runs[0].id)
+                await self.cancel_run(thread_id, runs[0]["id"])
             except Exception as e:
                 # Log error but continue with creating new run
                 print(f"Error cancelling run: {e}")
@@ -240,7 +240,24 @@ class OpenAIClient(IOpenAIClient):
             tools=tools,
             metadata=metadata
         )
-        return response
+        print("Raw response type:", type(response))
+        print("Raw response:", response)
+        
+        try:
+            response_dict = response.model_dump()
+            print("Response dict:", response_dict)
+            return response_dict
+        except Exception as e:
+            print(f"Error converting response to dict: {e}")
+            # Fallback to manual conversion
+            return {
+                "id": response.id,
+                "thread_id": response.thread_id,
+                "assistant_id": response.assistant_id,
+                "status": response.status,
+                "created_at": response.created_at,
+                "metadata": getattr(response, "metadata", None)
+            }
 
     async def get_thread_messages(
         self,
@@ -281,3 +298,17 @@ class OpenAIClient(IOpenAIClient):
             metadata=metadata
         )
         return response.model_dump()
+
+    async def delete_thread_message(
+        self,
+        thread_id: str,
+        message_id: str
+    ) -> None:
+        """Delete a message from a thread."""
+        if not self._client:
+            raise RuntimeError("Client not initialized")
+            
+        await self._client.beta.threads.messages.delete(
+            thread_id=thread_id,
+            message_id=message_id
+        )

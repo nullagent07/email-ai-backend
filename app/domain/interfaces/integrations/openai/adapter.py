@@ -156,3 +156,38 @@ class IOpenAIAdapter(ABC):
             Dict containing the run information
         """
         pass
+
+    @abstractmethod
+    async def list_runs(
+        self,
+        thread_id: str,
+        limit: int = 100,
+        order: str = "desc"
+    ) -> Dict[str, Any]:
+        """
+        List runs for a thread.
+        
+        Args:
+            thread_id: ID of the thread
+            limit: Maximum number of runs to return
+            order: Sort order ("asc" or "desc")
+            
+        Returns:
+            Dict containing the list of runs and pagination info
+        """
+        pass
+
+    @abstractmethod
+    async def delete_message(
+        self,
+        thread_id: str,
+        message_id: str
+    ) -> None:
+        """
+        Delete a message from a thread.
+        
+        Args:
+            thread_id: ID of the thread
+            message_id: ID of the message to delete
+        """
+        pass

@@ -33,11 +33,6 @@ class IGmailAccountService(ABC):
         pass
 
     @abstractmethod
-    async def get_account(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
-        """Получает аккаунт Gmail по ID OAuth учетных данных."""
-        pass
-
-    @abstractmethod
     async def get_by_user_id(self, user_id: UUID) -> Optional[GmailAccount]:
         """
         Получает аккаунт Gmail по ID пользователя.

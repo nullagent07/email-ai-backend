@@ -111,6 +111,26 @@ class IOpenAIThreadService(ABC):
         pass
 
     @abstractmethod
+    async def list_runs(
+        self,
+        thread_id: str,
+        limit: int = 100,
+        order: str = "desc"
+    ) -> List[Dict[str, Any]]:
+        """
+        List runs for a thread.
+        
+        Args:
+            thread_id: ID of the thread
+            limit: Maximum number of runs to return
+            order: Sort order for runs ("asc" or "desc")
+            
+        Returns:
+            List of runs for the thread
+        """
+        pass
+
+    @abstractmethod
     async def wait_for_run_completion(
         self,
         thread_id: str,
@@ -132,5 +152,33 @@ class IOpenAIThreadService(ABC):
             
         Raises:
             TimeoutError: If the run does not complete within the timeout period
+        """
+        pass
+
+    @abstractmethod
+    async def delete_message(
+        self,
+        thread_id: str,
+        message_id: str
+    ) -> None:
+        """
+        Delete a message from a thread.
+        
+        Args:
+            thread_id: ID of the thread
+            message_id: ID of the message to delete
+        """
+        pass
+
+    @abstractmethod
+    async def delete_all_messages(
+        self,
+        thread_id: str,
+    ) -> None:
+        """
+        Delete all messages from a thread.
+        
+        Args:
+            thread_id: ID of the thread
         """
         pass

@@ -50,7 +50,7 @@ class GmailAccountService(IGmailAccountService):
 
     async def get_by_oauth_credentials(self, oauth_credentials_id: UUID) -> Optional[GmailAccount]:
         """Get Gmail account by OAuth credentials ID."""
-        return await self.gmail_account_repository.get_by_oauth_credentials(oauth_credentials_id)
+        return await self.get_account(oauth_credentials_id)
 
     async def setup_watch(
         self,

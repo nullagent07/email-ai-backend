@@ -181,8 +181,11 @@ class OpenAIAdapter(IOpenAIAdapter):
         order: str = "desc"
     ) -> List[Dict[str, Any]]:
         """List runs for a thread."""
-        client = self.get_client()
-        response = await client.list_runs(thread_id=thread_id, limit=limit, order=order)
+        response = await self._client.list_runs(
+            thread_id=thread_id,
+            limit=limit,
+            order=order
+        )
         return response
 
     async def cancel_run(self, thread_id: str, run_id: str) -> None:
@@ -209,13 +212,15 @@ class OpenAIAdapter(IOpenAIAdapter):
             tools=tools,
             metadata=metadata
         )
+        print("Adapter - response type:", type(response))
+        print("Adapter - response:", response)
         return {
-            "id": response.id,
-            "thread_id": response.thread_id,
-            "assistant_id": response.assistant_id,
-            "status": response.status,
-            "created_at": response.created_at,
-            "metadata": getattr(response, "metadata", None)
+            "id": response["id"],
+            "thread_id": response["thread_id"],
+            "assistant_id": response["assistant_id"],
+            "status": response["status"],
+            "created_at": response["created_at"],
+            "metadata": response.get("metadata")
         }
 
     async def get_thread_messages(
@@ -245,3 +250,12 @@ class OpenAIAdapter(IOpenAIAdapter):
             thread_id=thread_id,
             run_id=run_id
         )
+
+    async def delete_message(
+        self,
+        thread_id: str,
+        message_id: str
+    ) -> None:
+        """Delete a message from a thread."""
+        client = self.get_client()
+        await client.delete_thread_message(thread_id=thread_id, message_id=message_id)

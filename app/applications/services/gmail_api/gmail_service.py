@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from app.domain.interfaces.integrations.gmail.adapter import IGmailAdapter
 from app.domain.interfaces.services.gmail_api.gmail_service import IGmailService
@@ -42,16 +42,39 @@ class GmailService(IGmailService):
             label_filters=label_filters
         )
 
-    async def get_history_changes(self, history_id: str) -> dict:
+    async def get_history(self, history_id: str, user_email: str) -> Tuple[str, str]:
+        """Gets history records after the specified history ID."""
+        if not self._adapter:
+            raise RuntimeError("Gmail service not initialized")
+        return await self._adapter.get_history(history_id=history_id, user_email=user_email)
+
+    async def get_history_changes(self, history_id: str, user_email: str) -> Tuple[str, str]:
+        """Gets history records after the specified history ID."""
+        if not self._adapter:
+            raise RuntimeError("Gmail service not initialized")
+        return await self._adapter.get_history_changes(history_id=history_id, user_email=user_email)
+
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        message_text: str,
+        thread_id: Optional[str] = None
+    ) -> None:
         """
-        Gets history records after the specified history ID.
+        Send an email using Gmail API.
         
         Args:
-            history_id: ID of the last history record that you have
-
-        Returns:
-            Dict containing history records from Gmail API
+            to_email: Recipient's email address
+            subject: Email subject
+            message_text: Email body text
+            thread_id: Optional thread ID for replying to a thread
         """
         if not self._adapter:
             raise RuntimeError("Gmail service not initialized")
-        return await self._adapter.get_history_changes(history_id)
+        await self._adapter.send_email(
+            to_email=to_email,
+            subject=subject,
+            message_text=message_text,
+            thread_id=thread_id
+        )
